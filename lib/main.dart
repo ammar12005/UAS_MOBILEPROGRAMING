@@ -189,17 +189,25 @@ class StorageService {
   }
 
   // Events Management
-  static Future<List<Event>> getEvents(int userId) async {
-    final prefs = await _prefs();
-    final data = prefs.getString('${_prefix}events_$userId');
-    if (data == null) return [];
-    return (json.decode(data) as List).map((e) => Event.fromJson(e)).toList();
-  }
+static Future<List<Event>> getEvents(int userId) async {
+  final prefs = await _prefs();
+  final data = prefs.getString('${_prefix}events_$userId');
+  print('🟢 LOAD Events untuk user $userId: ${data != null ? "Ada data" : "Kosong"}');
+  if (data == null) return [];
+  final events = (json.decode(data) as List).map((e) => Event.fromJson(e)).toList();
+  print('🟢 Total events loaded: ${events.length}');
+  return events;
+}
 
-  static Future<void> saveEvents(int userId, List<Event> events) async {
-    final prefs = await _prefs();
-    await prefs.setString('${_prefix}events_$userId', json.encode(events.map((e) => e.toJson()).toList()));
-  }
+static Future<void> saveEvents(int userId, List<Event> events) async {
+  final prefs = await _prefs();
+  await prefs.setString('${_prefix}events_$userId', json.encode(events.map((e) => e.toJson()).toList()));
+  print('🔵 SAVE Events untuk user $userId: ${events.length} events');
+  
+  // Verifikasi data tersimpan
+  final saved = prefs.getString('${_prefix}events_$userId');
+  print('🔵 Verifikasi: ${saved != null ? "Data tersimpan!" : "GAGAL SIMPAN!"}');
+}
 
   // Tickets Management
   static Future<List<Ticket>> getTickets(int userId) async {
