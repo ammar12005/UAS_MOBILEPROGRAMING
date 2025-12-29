@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 // Import halaman
 import 'pages/create_event_page.dart';
@@ -12,6 +12,11 @@ import 'pages/statistics_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Inisialisasi Hive untuk storage
+  await Hive.initFlutter();
+  await Hive.openBox('eventManagerStorage');
+  
   // Inisialisasi locale Indonesia untuk format tanggal
   await initializeDateFormatting('id_ID', null);
   runApp(const MyApp());
@@ -29,7 +34,6 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF9333EA)),
-        // Font global
         fontFamily: 'Roboto',
       ),
       home: const AuthCheck(),
@@ -147,79 +151,76 @@ class Ticket {
   );
 }
 
-// --- STORAGE SERVICE ---
+// --- STORAGE SERVICE dengan HIVE ---
 class StorageService {
   static const String _prefix = 'emp_v2_';
-  
-  static Future<SharedPreferences> _prefs() async => await SharedPreferences.getInstance();
+  static Box get _box => Hive.box('eventManagerStorage');
 
   // Users Management
   static Future<List<User>> getUsers() async {
-    final prefs = await _prefs();
-    final data = prefs.getString('${_prefix}users');
+    final data = _box.get('${_prefix}users');
+    print('🟢 LOAD Users: ${data != null ? "Ada data" : "Kosong"}');
     if (data == null) return [];
     return (json.decode(data) as List).map((u) => User.fromJson(u)).toList();
   }
 
   static Future<void> saveUsers(List<User> users) async {
-    final prefs = await _prefs();
-    await prefs.setString('${_prefix}users', json.encode(users.map((u) => u.toJson()).toList()));
+    await _box.put('${_prefix}users', json.encode(users.map((u) => u.toJson()).toList()));
+    print('🔵 SAVE Users: ${users.length} users');
   }
 
   // Session Management
   static Future<void> setSession(User user) async {
-    final prefs = await _prefs();
-    await prefs.setString('${_prefix}current_user', json.encode(user.toJson()));
-    await prefs.setBool('${_prefix}is_logged_in', true);
+    await _box.put('${_prefix}current_user', json.encode(user.toJson()));
+    await _box.put('${_prefix}is_logged_in', true);
+    print('🔵 SAVE Session: ${user.name}');
   }
 
   static Future<User?> getSession() async {
-    final prefs = await _prefs();
-    final isLoggedIn = prefs.getBool('${_prefix}is_logged_in') ?? false;
+    final isLoggedIn = _box.get('${_prefix}is_logged_in', defaultValue: false);
+    print('🟢 LOAD Session: ${isLoggedIn ? "Logged in" : "Not logged in"}');
     if (!isLoggedIn) return null;
     
-    final data = prefs.getString('${_prefix}current_user');
+    final data = _box.get('${_prefix}current_user');
     return data != null ? User.fromJson(json.decode(data)) : null;
   }
 
   static Future<void> logout() async {
-    final prefs = await _prefs();
-    await prefs.remove('${_prefix}current_user');
-    await prefs.setBool('${_prefix}is_logged_in', false);
+    await _box.delete('${_prefix}current_user');
+    await _box.put('${_prefix}is_logged_in', false);
+    print('🔴 LOGOUT');
   }
 
   // Events Management
-static Future<List<Event>> getEvents(int userId) async {
-  final prefs = await _prefs();
-  final data = prefs.getString('${_prefix}events_$userId');
-  print('🟢 LOAD Events untuk user $userId: ${data != null ? "Ada data" : "Kosong"}');
-  if (data == null) return [];
-  final events = (json.decode(data) as List).map((e) => Event.fromJson(e)).toList();
-  print('🟢 Total events loaded: ${events.length}');
-  return events;
-}
+  static Future<List<Event>> getEvents(int userId) async {
+    final data = _box.get('${_prefix}events_$userId');
+    print('🟢 LOAD Events untuk user $userId: ${data != null ? "Ada data" : "Kosong"}');
+    if (data == null) return [];
+    final events = (json.decode(data) as List).map((e) => Event.fromJson(e)).toList();
+    print('🟢 Total events loaded: ${events.length}');
+    return events;
+  }
 
-static Future<void> saveEvents(int userId, List<Event> events) async {
-  final prefs = await _prefs();
-  await prefs.setString('${_prefix}events_$userId', json.encode(events.map((e) => e.toJson()).toList()));
-  print('🔵 SAVE Events untuk user $userId: ${events.length} events');
-  
-  // Verifikasi data tersimpan
-  final saved = prefs.getString('${_prefix}events_$userId');
-  print('🔵 Verifikasi: ${saved != null ? "Data tersimpan!" : "GAGAL SIMPAN!"}');
-}
+  static Future<void> saveEvents(int userId, List<Event> events) async {
+    await _box.put('${_prefix}events_$userId', json.encode(events.map((e) => e.toJson()).toList()));
+    print('🔵 SAVE Events untuk user $userId: ${events.length} events');
+    
+    // Verifikasi data tersimpan
+    final saved = _box.get('${_prefix}events_$userId');
+    print('🔵 Verifikasi: ${saved != null ? "✅ Data tersimpan di Hive!" : "❌ GAGAL SIMPAN!"}');
+  }
 
   // Tickets Management
   static Future<List<Ticket>> getTickets(int userId) async {
-    final prefs = await _prefs();
-    final data = prefs.getString('${_prefix}tickets_$userId');
+    final data = _box.get('${_prefix}tickets_$userId');
+    print('🟢 LOAD Tickets untuk user $userId: ${data != null ? "Ada data" : "Kosong"}');
     if (data == null) return [];
     return (json.decode(data) as List).map((t) => Ticket.fromJson(t)).toList();
   }
 
   static Future<void> saveTickets(int userId, List<Ticket> tickets) async {
-    final prefs = await _prefs();
-    await prefs.setString('${_prefix}tickets_$userId', json.encode(tickets.map((t) => t.toJson()).toList()));
+    await _box.put('${_prefix}tickets_$userId', json.encode(tickets.map((t) => t.toJson()).toList()));
+    print('🔵 SAVE Tickets untuk user $userId: ${tickets.length} tickets');
   }
 }
 
@@ -239,9 +240,7 @@ class _AuthCheckState extends State<AuthCheck> {
   }
   
   Future<void> _checkAuthentication() async {
-    // Delay untuk splash screen effect
     await Future.delayed(const Duration(milliseconds: 500));
-    
     final user = await StorageService.getSession();
     
     if (!mounted) return;
@@ -356,7 +355,6 @@ class _LoginPageState extends State<LoginPage> {
       final email = _emailController.text.trim().toLowerCase();
       
       if (isLogin) {
-        // Login
         final user = users.cast<User?>().firstWhere(
           (u) => u?.email == email && u?.password == _passwordController.text,
           orElse: () => null,
@@ -374,7 +372,6 @@ class _LoginPageState extends State<LoginPage> {
           setState(() => _errorMessage = "Email atau password salah");
         }
       } else {
-        // Register
         if (users.any((u) => u.email == email)) {
           setState(() => _errorMessage = "Email sudah terdaftar");
           return;
@@ -551,7 +548,6 @@ class _LoginPageState extends State<LoginPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Icon Header
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -563,8 +559,6 @@ class _LoginPageState extends State<LoginPage> {
                         child: const Icon(Icons.auto_awesome, color: Colors.white, size: 40),
                       ),
                       const SizedBox(height: 20),
-                      
-                      // Title
                       Text(
                         isLogin ? "Selamat Datang!" : "Buat Akun Baru",
                         style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
@@ -575,8 +569,6 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 24),
-                      
-                      // Error Message
                       if (_errorMessage != null) ...[
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -590,18 +582,13 @@ class _LoginPageState extends State<LoginPage> {
                               const Icon(Icons.error_outline, color: Colors.red),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(color: Colors.red),
-                                ),
+                                child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 16),
                       ],
-                      
-                      // Name Field (Register only)
                       if (!isLogin) ...[
                         TextFormField(
                           controller: _nameController,
@@ -616,8 +603,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      
-                      // Email Field
                       TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
@@ -635,8 +620,6 @@ class _LoginPageState extends State<LoginPage> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      
-                      // Password Field
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
@@ -658,8 +641,6 @@ class _LoginPageState extends State<LoginPage> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      
-                      // Confirm Password Field (Register only)
                       if (!isLogin) ...[
                         TextFormField(
                           controller: _confirmPasswordController,
@@ -679,8 +660,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      
-                      // Forgot Password (Login only)
                       if (isLogin)
                         Align(
                           alignment: Alignment.centerRight,
@@ -689,10 +668,7 @@ class _LoginPageState extends State<LoginPage> {
                             child: const Text('Lupa Password?'),
                           ),
                         ),
-                      
                       const SizedBox(height: 24),
-                      
-                      // Submit Button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -715,16 +691,11 @@ class _LoginPageState extends State<LoginPage> {
                                 )
                               : Text(
                                   isLogin ? "Login" : "Daftar",
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                 ),
                         ),
                       ),
                       const SizedBox(height: 16),
-                      
-                      // Toggle Login/Register
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -795,10 +766,8 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  // Tambahan fungsi untuk menghapus event
   void _handleDeleteEvent(int eventId) {
     final updatedEvents = events.where((e) => e.id != eventId).toList();
-    // Juga hapus tiket yang terkait dengan event tersebut
     final updatedTickets = tickets.where((t) => t.eventId != eventId).toList();
     
     setState(() {
@@ -842,7 +811,7 @@ class _DashboardPageState extends State<DashboardPage> {
           setState(() => tickets = updatedTickets);
           StorageService.saveTickets(widget.user.id, updatedTickets);
         },
-        onEventDeleted: _handleDeleteEvent, // Pass fungsi hapus
+        onEventDeleted: _handleDeleteEvent,
       ),
       ScanPage(
         tickets: tickets,
@@ -878,18 +847,9 @@ class _DashboardPageState extends State<DashboardPage> {
           elevation: 0,
           backgroundColor: Colors.transparent,
           items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.event),
-              label: "Events",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.qr_code_scanner),
-              label: "Scan",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart),
-              label: "Statistik",
-            ),
+            BottomNavigationBarItem(icon: Icon(Icons.event), label: "Events"),
+            BottomNavigationBarItem(icon: Icon(Icons.qr_code_scanner), label: "Scan"),
+            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Statistik"),
           ],
         ),
       ),
@@ -904,7 +864,7 @@ class EventsPage extends StatelessWidget {
   final List<Ticket> tickets;
   final Function(List<Event>) onEventsChanged;
   final Function(List<Ticket>) onTicketsChanged;
-  final Function(int) onEventDeleted; // Callback baru
+  final Function(int) onEventDeleted;
 
   const EventsPage({
     super.key,
@@ -913,10 +873,9 @@ class EventsPage extends StatelessWidget {
     required this.tickets,
     required this.onEventsChanged,
     required this.onTicketsChanged,
-    required this.onEventDeleted, // Diperlukan di konstruktor
+    required this.onEventDeleted,
   });
 
-  // Dialog konfirmasi hapus
   void _showDeleteDialog(BuildContext context, Event event) {
     showDialog(
       context: context,
@@ -964,7 +923,6 @@ class EventsPage extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -1027,10 +985,7 @@ class EventsPage extends StatelessWidget {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF9333EA),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
@@ -1054,9 +1009,7 @@ class EventsPage extends StatelessWidget {
                                 ),
                                 ElevatedButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.red,
-                                  ),
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                                   child: const Text('Logout'),
                                 ),
                               ],
@@ -1068,9 +1021,7 @@ class EventsPage extends StatelessWidget {
                             if (context.mounted) {
                               Navigator.pushReplacement(
                                 context,
-                                MaterialPageRoute(
-                                  builder: (_) => const LoginPage(),
-                                ),
+                                MaterialPageRoute(builder: (_) => const LoginPage()),
                               );
                             }
                           }
@@ -1081,34 +1032,22 @@ class EventsPage extends StatelessWidget {
                 ],
               ),
             ),
-            
-            // Events List
             Expanded(
               child: events.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.event_busy,
-                            size: 80,
-                            color: Colors.white.withOpacity(0.3),
-                          ),
+                          Icon(Icons.event_busy, size: 80, color: Colors.white.withOpacity(0.3)),
                           const SizedBox(height: 16),
                           Text(
                             'Belum ada event',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.white.withOpacity(0.7),
-                            ),
+                            style: TextStyle(fontSize: 18, color: Colors.white.withOpacity(0.7)),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Buat event pertama Anda!',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withOpacity(0.5),
-                            ),
+                            style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5)),
                           ),
                         ],
                       ),
@@ -1125,15 +1064,13 @@ class EventsPage extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
-                            ),
+                            border: Border.all(color: Colors.white.withOpacity(0.2)),
                           ),
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(24),
-                              onLongPress: () => _showDeleteDialog(context, event), // Tekan lama untuk hapus
+                              onLongPress: () => _showDeleteDialog(context, event),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -1166,24 +1103,18 @@ class EventsPage extends StatelessWidget {
                                             borderRadius: BorderRadius.circular(16),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: gradient.colors.first
-                                                    .withOpacity(0.3),
+                                                color: gradient.colors.first.withOpacity(0.3),
                                                 blurRadius: 12,
                                                 offset: const Offset(0, 4),
                                               ),
                                             ],
                                           ),
-                                          child: const Icon(
-                                            Icons.calendar_today,
-                                            color: Colors.white,
-                                            size: 28,
-                                          ),
+                                          child: const Icon(Icons.calendar_today, color: Colors.white, size: 28),
                                         ),
                                         const SizedBox(width: 16),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 event.name,
@@ -1196,26 +1127,17 @@ class EventsPage extends StatelessWidget {
                                               const SizedBox(height: 4),
                                               Row(
                                                 children: [
-                                                  const Icon(
-                                                    Icons.access_time,
-                                                    color: Color(0xFFC4B5FD),
-                                                    size: 16,
-                                                  ),
+                                                  const Icon(Icons.access_time, color: Color(0xFFC4B5FD), size: 16),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    DateFormat('dd MMM yyyy')
-                                                        .format(event.date),
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      color: Color(0xFFC4B5FD),
-                                                    ),
+                                                    DateFormat('dd MMM yyyy').format(event.date),
+                                                    style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
                                                   ),
                                                 ],
                                               ),
                                             ],
                                           ),
                                         ),
-                                        // Tombol hapus langsung di kartu
                                         IconButton(
                                           icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                                           onPressed: () => _showDeleteDialog(context, event),
@@ -1231,31 +1153,20 @@ class EventsPage extends StatelessWidget {
                                       ),
                                       child: Row(
                                         children: [
-                                          const Icon(
-                                            Icons.location_on,
-                                            color: Color(0xFFC4B5FD),
-                                            size: 18,
-                                          ),
+                                          const Icon(Icons.location_on, color: Color(0xFFC4B5FD), size: 18),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: Text(
                                               event.location,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Color(0xFFC4B5FD),
-                                              ),
+                                              style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
                                             ),
                                           ),
                                           const SizedBox(width: 16),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 6,
-                                            ),
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                             decoration: BoxDecoration(
                                               gradient: gradient,
-                                              borderRadius:
-                                                  BorderRadius.circular(8),
+                                              borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: Text(
                                               '${event.ticketsSold}/${event.capacity}',

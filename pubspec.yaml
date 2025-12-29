@@ -21,7 +21,9 @@ dependencies:
   intl: ^0.19.0                   # Format tanggal & waktu (support localization)
   
   # Data Storage - Simpan data lokal permanen
-  shared_preferences: ^2.2.0      # Save login session & data event
+  shared_preferences: ^2.2.0      # Save login session (backup)
+  hive: ^2.2.3                    # Database lokal yang cepat & reliable
+  hive_flutter: ^1.1.0            # Hive support untuk Flutter (IndexedDB di Web)
 
 dev_dependencies:
   flutter_test:
