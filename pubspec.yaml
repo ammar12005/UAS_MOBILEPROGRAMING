@@ -1,0 +1,32 @@
+name: aplikasi_manajemen_event_dan_tiket_digital
+description: "Aplikasi manajemen event dan tiket digital dengan fitur QR code"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI & Icons
+  cupertino_icons: ^1.0.6
+  
+  # QR Code Generator & Scanner
+  qr_flutter: ^4.1.0              # Untuk generate QR code
+  mobile_scanner: ^5.1.0          # Untuk scan QR code (versi terbaru & stabil)
+  
+  # Date & Time Formatting
+  intl: ^0.19.0                   # Format tanggal & waktu (support localization)
+  
+  # Data Storage - Simpan data lokal permanen
+  shared_preferences: ^2.2.0      # Save login session & data event
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0           # Linting untuk code quality
+
+flutter:
+  uses-material-design: true
