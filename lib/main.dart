@@ -40,7 +40,7 @@ Future<void> _createDefaultAccount() async {
       
       await StorageService.saveUsers(defaultUsers);
       print('✅ Akun default berhasil dibuat:');
-      print('   Email: admin@gmail.com | Password: 123456');
+      print('   Email: ammarr23@gmail.com | Password: ammar123');
       print('   Email: user@gmail.com  | Password: user123');
     }
   } catch (e) {
