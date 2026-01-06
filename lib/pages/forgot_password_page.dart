@@ -190,11 +190,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               // Header
               Container(
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF9333EA).withOpacity(0.2),
-                      const Color(0xFF3B82F6).withOpacity(0.2),
+                      Color(0x339333EA),
+                      Color(0x333B82F6),
                     ],
                   ),
                 ),
@@ -224,7 +224,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     padding: const EdgeInsets.all(24),
                     child: Card(
                       elevation: 20,
-                      shadowColor: const Color(0xFF9333EA).withOpacity(0.5),
+                      color: const Color.fromRGBO(147, 51, 234, 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -246,7 +246,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF9333EA).withOpacity(0.3),
+                                      color: const Color(0xFF9333EA).withValues(alpha: 0.3),  // gunakan color, bukan shadowColor
                                       blurRadius: 15,
                                       offset: const Offset(0, 5),
                                     ),

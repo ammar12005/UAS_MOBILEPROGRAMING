@@ -3,6 +3,7 @@ import '../models.dart';
 import '../storage_service.dart';
 import 'dashboard_page.dart';
 import 'register_page.dart';
+import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -40,146 +41,31 @@ class _LoginPageState extends State<LoginPage> {
       final email = _emailController.text.trim().toLowerCase();
       
       final user = users.cast<User?>().firstWhere(
-        (u) => u?.email == email && u?.password == _passwordController.text,
+        (u) => u?.email.toLowerCase() == email && u?.password == _passwordController.text,
         orElse: () => null,
       );
       
+      if (!mounted) return;
+      
       if (user != null) {
         await StorageService.setSession(user);
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => DashboardPage(user: user)),
-          );
-        }
+        if (!mounted) return;
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => DashboardPage(user: user)),
+        );
       } else {
         setState(() => _errorMessage = "Email atau password salah");
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _errorMessage = "Terjadi kesalahan: ${e.toString()}");
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
-  }
-
-  void _showForgotPasswordDialog() {
-    final emailController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.lock_reset, color: Color(0xFF9333EA)),
-            SizedBox(width: 12),
-            Text('Lupa Password'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Masukkan email Anda untuk menampilkan password'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                prefixIcon: const Icon(Icons.email),
-              ),
-              keyboardType: TextInputType.emailAddress,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = emailController.text.trim().toLowerCase();
-              final users = await StorageService.getUsers();
-              final user = users.cast<User?>().firstWhere(
-                (u) => u?.email == email,
-                orElse: () => null,
-              );
-              
-              Navigator.pop(context);
-              
-              if (user != null) {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    title: const Row(
-                      children: [
-                        Icon(Icons.check_circle, color: Colors.green),
-                        SizedBox(width: 12),
-                        Text('Password Ditemukan'),
-                      ],
-                    ),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Password Anda adalah:'),
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            user.password,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    actions: [
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF9333EA),
-                        ),
-                        child: const Text('OK'),
-                      ),
-                    ],
-                  ),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Row(
-                      children: [
-                        Icon(Icons.error_outline, color: Colors.white),
-                        SizedBox(width: 12),
-                        Text('Email tidak terdaftar'),
-                      ],
-                    ),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF9333EA),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Cari Password'),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -198,7 +84,7 @@ class _LoginPageState extends State<LoginPage> {
             padding: const EdgeInsets.all(24),
             child: Card(
               elevation: 20,
-              shadowColor: const Color(0xFF9333EA).withOpacity(0.5),
+              shadowColor: const Color(0x809333EA),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 400),
@@ -210,8 +96,8 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
                             colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
                           ),
                           shape: BoxShape.circle,
@@ -229,6 +115,8 @@ class _LoginPageState extends State<LoginPage> {
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 24),
+                      
+                      // Error Message
                       if (_errorMessage != null) ...[
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -242,13 +130,18 @@ class _LoginPageState extends State<LoginPage> {
                               const Icon(Icons.error_outline, color: Colors.red),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 16),
                       ],
+                      
+                      // Email Field
                       TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
@@ -260,12 +153,14 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (v) {
-                          if (v?.isEmpty ?? true) return "Email harus diisi";
+                          if (v?.trim().isEmpty ?? true) return "Email harus diisi";
                           if (!v!.contains('@')) return "Email tidak valid";
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Password Field
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
@@ -281,20 +176,29 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         obscureText: !_showPassword,
                         validator: (v) {
-                          if (v?.isEmpty ?? true) return "Password harus diisi";
+                          if (v?.trim().isEmpty ?? true) return "Password harus diisi";
                           if (v!.length < 6) return "Password minimal 6 karakter";
                           return null;
                         },
                       ),
                       const SizedBox(height: 8),
+                      
+                      // Forgot Password Button
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: _showForgotPasswordDialog,
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
+                            );
+                          },
                           child: const Text('Lupa Password?'),
                         ),
                       ),
                       const SizedBox(height: 24),
+                      
+                      // Login Button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -305,6 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 4,
+                            disabledBackgroundColor: Colors.grey[300],
                           ),
                           child: _isLoading
                               ? const SizedBox(
@@ -322,6 +227,8 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Register Link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

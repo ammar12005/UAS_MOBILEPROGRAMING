@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../storage_service.dart';
-import 'dashboard_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
-  
+
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
@@ -48,11 +47,16 @@ class _RegisterPageState extends State<RegisterPage> {
       final users = await StorageService.getUsers();
       final email = _emailController.text.trim().toLowerCase();
       
-      if (users.any((u) => u.email == email)) {
+      // Cek email sudah terdaftar
+      final emailExists = users.any((u) => u.email.toLowerCase() == email);
+      
+      if (emailExists) {
+        if (!mounted) return;
         setState(() => _errorMessage = "Email sudah terdaftar");
         return;
       }
       
+      // Buat user baru
       final newUser = User(
         id: DateTime.now().millisecondsSinceEpoch,
         name: _nameController.text.trim(),
@@ -62,15 +66,27 @@ class _RegisterPageState extends State<RegisterPage> {
       
       users.add(newUser);
       await StorageService.saveUsers(users);
-      await StorageService.setSession(newUser);
       
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => DashboardPage(user: newUser)),
-        );
-      }
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Registrasi berhasil! Silakan login.'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      
+      Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
       setState(() => _errorMessage = "Terjadi kesalahan: ${e.toString()}");
     } finally {
       if (mounted) {
@@ -95,7 +111,7 @@ class _RegisterPageState extends State<RegisterPage> {
             padding: const EdgeInsets.all(24),
             child: Card(
               elevation: 20,
-              shadowColor: const Color(0xFF9333EA).withOpacity(0.5),
+              shadowColor: const Color(0x809333EA),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 400),
@@ -105,24 +121,15 @@ class _RegisterPageState extends State<RegisterPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          const Spacer(),
-                        ],
-                      ),
                       Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
                             colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
                           ),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.auto_awesome, color: Colors.white, size: 40),
+                        child: const Icon(Icons.person_add, color: Colors.white, size: 40),
                       ),
                       const SizedBox(height: 20),
                       const Text(
@@ -131,10 +138,13 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Daftar untuk memulai",
+                        "Daftar untuk menggunakan Event Manager Pro",
+                        textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                       const SizedBox(height: 24),
+                      
+                      // Error Message
                       if (_errorMessage != null) ...[
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -148,13 +158,18 @@ class _RegisterPageState extends State<RegisterPage> {
                               const Icon(Icons.error_outline, color: Colors.red),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(color: Colors.red),
+                                ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 16),
                       ],
+                      
+                      // Name Field
                       TextFormField(
                         controller: _nameController,
                         decoration: InputDecoration(
@@ -164,9 +179,15 @@ class _RegisterPageState extends State<RegisterPage> {
                           filled: true,
                           fillColor: Colors.grey[50],
                         ),
-                        validator: (v) => v?.isEmpty ?? true ? "Nama harus diisi" : null,
+                        validator: (v) {
+                          if (v?.trim().isEmpty ?? true) return "Nama harus diisi";
+                          if (v!.length < 3) return "Nama minimal 3 karakter";
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Email Field
                       TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
@@ -178,12 +199,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (v) {
-                          if (v?.isEmpty ?? true) return "Email harus diisi";
+                          if (v?.trim().isEmpty ?? true) return "Email harus diisi";
                           if (!v!.contains('@')) return "Email tidak valid";
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Password Field
                       TextFormField(
                         controller: _passwordController,
                         decoration: InputDecoration(
@@ -199,12 +222,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         obscureText: !_showPassword,
                         validator: (v) {
-                          if (v?.isEmpty ?? true) return "Password harus diisi";
+                          if (v?.trim().isEmpty ?? true) return "Password harus diisi";
                           if (v!.length < 6) return "Password minimal 6 karakter";
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Confirm Password Field
                       TextFormField(
                         controller: _confirmPasswordController,
                         decoration: InputDecoration(
@@ -219,9 +244,15 @@ class _RegisterPageState extends State<RegisterPage> {
                           fillColor: Colors.grey[50],
                         ),
                         obscureText: !_showConfirmPassword,
-                        validator: (v) => v?.isEmpty ?? true ? "Konfirmasi password harus diisi" : null,
+                        validator: (v) {
+                          if (v?.trim().isEmpty ?? true) return "Konfirmasi password harus diisi";
+                          if (v != _passwordController.text) return "Password tidak cocok";
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 24),
+                      
+                      // Register Button
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -232,6 +263,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             elevation: 4,
+                            disabledBackgroundColor: Colors.grey[300],
                           ),
                           child: _isLoading
                               ? const SizedBox(
@@ -249,6 +281,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      
+                      // Login Link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -257,9 +291,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             style: TextStyle(color: Colors.grey[600]),
                           ),
                           TextButton(
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
+                            onPressed: () => Navigator.pop(context),
                             child: const Text(
                               "Login",
                               style: TextStyle(fontWeight: FontWeight.bold),

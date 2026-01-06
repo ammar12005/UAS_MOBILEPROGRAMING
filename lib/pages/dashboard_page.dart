@@ -106,10 +106,10 @@ class _DashboardPageState extends State<DashboardPage> {
       body: pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF1E293B), // Diubah ke warna gelap agar sesuai tema
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.3), // PERBAIKAN: withValues
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -118,7 +118,7 @@ class _DashboardPageState extends State<DashboardPage> {
         child: BottomNavigationBar(
           currentIndex: _selectedIndex,
           onTap: (index) => setState(() => _selectedIndex = index),
-          selectedItemColor: const Color(0xFF9333EA),
+          selectedItemColor: const Color(0xFFC4B5FD),
           unselectedItemColor: Colors.grey,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
           type: BottomNavigationBarType.fixed,
@@ -135,7 +135,6 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-// --- EVENTS PAGE ---
 class EventsPage extends StatelessWidget {
   final User user;
   final List<Event> events;
@@ -158,8 +157,12 @@ class EventsPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus Event'),
-        content: Text('Apakah Anda yakin ingin menghapus "${event.name}"? Semua tiket terkait juga akan terhapus.'),
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Hapus Event', style: TextStyle(color: Colors.white)),
+        content: Text(
+          'Apakah Anda yakin ingin menghapus "${event.name}"? Semua tiket terkait juga akan terhapus.',
+          style: const TextStyle(color: Color(0xFFC4B5FD)),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -170,10 +173,13 @@ class EventsPage extends StatelessWidget {
               onEventDeleted(event.id);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Event ${event.name} berhasil dihapus')),
+                SnackBar(
+                  content: Text('Event ${event.name} berhasil dihapus'),
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
             child: const Text('Hapus'),
           ),
         ],
@@ -206,8 +212,8 @@ class EventsPage extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF9333EA).withOpacity(0.2),
-                    const Color(0xFF3B82F6).withOpacity(0.2),
+                    const Color(0xFF9333EA).withValues(alpha: 0.2), // PERBAIKAN: withValues
+                    const Color(0xFF3B82F6).withValues(alpha: 0.2), // PERBAIKAN: withValues
                   ],
                 ),
               ),
@@ -225,7 +231,7 @@ class EventsPage extends StatelessWidget {
                             Text(
                               'Event Manager Pro',
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -245,7 +251,7 @@ class EventsPage extends StatelessWidget {
                   ),
                   Row(
                     children: [
-                      ElevatedButton.icon(
+                      IconButton(
                         onPressed: () async {
                           await Navigator.push(
                             context,
@@ -258,49 +264,31 @@ class EventsPage extends StatelessWidget {
                             ),
                           );
                         },
-                        icon: const Icon(Icons.add),
-                        label: const Text('Buat Event'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF9333EA),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 8,
-                          shadowColor: const Color(0xFF9333EA).withOpacity(0.5),
-                        ),
+                        icon: const Icon(Icons.add_circle, color: Color(0xFF9333EA), size: 32),
                       ),
-                      const SizedBox(width: 12),
                       IconButton(
                         icon: const Icon(Icons.logout, color: Colors.white),
                         onPressed: () async {
                           final confirm = await showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('Konfirmasi Logout'),
-                              content: const Text('Apakah Anda yakin ingin keluar?'),
+                              backgroundColor: const Color(0xFF1E293B),
+                              title: const Text('Logout', style: TextStyle(color: Colors.white)),
+                              content: const Text('Yakin ingin keluar?', style: TextStyle(color: Colors.white70)),
                               actions: [
+                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
                                 TextButton(
-                                  onPressed: () => Navigator.pop(context, false),
-                                  child: const Text('Batal'),
-                                ),
-                                ElevatedButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                                  child: const Text('Logout'),
+                                  style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                                  child: const Text('Keluar'),
                                 ),
                               ],
                             ),
                           );
-                          
                           if (confirm == true) {
                             await StorageService.logout();
                             if (context.mounted) {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const LoginPage()),
-                              );
+                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
                             }
                           }
                         },
@@ -316,16 +304,16 @@ class EventsPage extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.event_busy, size: 80, color: Colors.white.withOpacity(0.3)),
+                          Icon(Icons.event_busy, size: 80, color: Colors.white.withValues(alpha: 0.3)), // PERBAIKAN
                           const SizedBox(height: 16),
                           Text(
                             'Belum ada event',
-                            style: TextStyle(fontSize: 18, color: Colors.white.withOpacity(0.7)),
+                            style: TextStyle(fontSize: 18, color: Colors.white.withValues(alpha: 0.7)),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Buat event pertama Anda!',
-                            style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.5)),
+                            style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.5)),
                           ),
                         ],
                       ),
@@ -340,9 +328,9 @@ class EventsPage extends StatelessWidget {
                         return Container(
                           margin: const EdgeInsets.only(bottom: 16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: Colors.white.withOpacity(0.2)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                           ),
                           child: Material(
                             color: Colors.transparent,
@@ -381,7 +369,7 @@ class EventsPage extends StatelessWidget {
                                             borderRadius: BorderRadius.circular(16),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: gradient.colors.first.withOpacity(0.3),
+                                                color: gradient.colors.first.withValues(alpha: 0.3), // PERBAIKAN
                                                 blurRadius: 12,
                                                 offset: const Offset(0, 4),
                                               ),
@@ -397,7 +385,7 @@ class EventsPage extends StatelessWidget {
                                               Text(
                                                 event.name,
                                                 style: const TextStyle(
-                                                  fontSize: 20,
+                                                  fontSize: 18,
                                                   fontWeight: FontWeight.bold,
                                                   color: Colors.white,
                                                 ),
@@ -416,17 +404,13 @@ class EventsPage extends StatelessWidget {
                                             ],
                                           ),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                          onPressed: () => _showDeleteDialog(context, event),
-                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 16),
                                     Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.1),
+                                        color: Colors.white.withValues(alpha: 0.05), // PERBAIKAN
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Row(
@@ -437,11 +421,13 @@ class EventsPage extends StatelessWidget {
                                             child: Text(
                                               event.location,
                                               style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           const SizedBox(width: 16),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
                                               gradient: gradient,
                                               borderRadius: BorderRadius.circular(8),
@@ -449,7 +435,7 @@ class EventsPage extends StatelessWidget {
                                             child: Text(
                                               '${event.ticketsSold}/${event.capacity}',
                                               style: const TextStyle(
-                                                fontSize: 14,
+                                                fontSize: 12,
                                                 fontWeight: FontWeight.bold,
                                                 color: Colors.white,
                                               ),

@@ -102,6 +102,7 @@ class _ScanPageState extends State<ScanPage> {
         setState(() => _isScanning = true);
         _scanTicket(barcode.rawValue!);
         
+        // Jeda 2 detik agar tidak scanning berkali-kali untuk tiket yang sama
         Future.delayed(const Duration(seconds: 2), () {
           if (mounted) setState(() => _isScanning = false);
         });
@@ -132,8 +133,8 @@ class _ScanPageState extends State<ScanPage> {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF9333EA).withOpacity(0.2),
-                    const Color(0xFF3B82F6).withOpacity(0.2),
+                    const Color(0xFF9333EA).withValues(alpha: 0.2), // PERBAIKAN: withValues
+                    const Color(0xFF3B82F6).withValues(alpha: 0.2), // PERBAIKAN: withValues
                   ],
                 ),
               ),
@@ -193,9 +194,9 @@ class _ScanPageState extends State<ScanPage> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -220,10 +221,10 @@ class _ScanPageState extends State<ScanPage> {
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.1),
+                                    color: Colors.white.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                     ),
                                   ),
                                   child: TextField(
@@ -235,7 +236,7 @@ class _ScanPageState extends State<ScanPage> {
                                     decoration: InputDecoration(
                                       hintText: 'Ketik kode tiket...',
                                       hintStyle: TextStyle(
-                                        color: Colors.white.withOpacity(0.4),
+                                        color: Colors.white.withValues(alpha: 0.4),
                                       ),
                                       border: InputBorder.none,
                                       contentPadding: const EdgeInsets.all(16),
@@ -270,9 +271,9 @@ class _ScanPageState extends State<ScanPage> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.2)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,9 +297,7 @@ class _ScanPageState extends State<ScanPage> {
                               ),
                               IconButton(
                                 icon: Icon(
-                                  _isCameraActive
-                                      ? Icons.videocam
-                                      : Icons.videocam_off,
+                                  _isCameraActive ? Icons.videocam : Icons.videocam_off,
                                   color: _isCameraActive
                                       ? const Color(0xFF10B981)
                                       : Colors.red,
@@ -342,13 +341,13 @@ class _ScanPageState extends State<ScanPage> {
                                             Icon(
                                               Icons.videocam_off,
                                               size: 64,
-                                              color: Colors.white.withOpacity(0.5),
+                                              color: Colors.white.withValues(alpha: 0.5),
                                             ),
                                             const SizedBox(height: 16),
                                             Text(
                                               'Kamera Dimatikan',
                                               style: TextStyle(
-                                                color: Colors.white.withOpacity(0.5),
+                                                color: Colors.white.withValues(alpha: 0.5),
                                                 fontSize: 16,
                                               ),
                                             ),
@@ -363,7 +362,7 @@ class _ScanPageState extends State<ScanPage> {
                             child: Text(
                               'Arahkan kamera ke QR Code tiket',
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
+                                color: Colors.white.withValues(alpha: 0.6),
                                 fontSize: 13,
                               ),
                             ),
@@ -392,9 +391,9 @@ class _ScanPageState extends State<ScanPage> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -412,7 +411,7 @@ class _ScanPageState extends State<ScanPage> {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -438,6 +437,8 @@ class _ScanPageState extends State<ScanPage> {
           )
         : null;
 
+    final baseColor = result.isValid ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -449,8 +450,7 @@ class _ScanPageState extends State<ScanPage> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: (result.isValid ? const Color(0xFF10B981) : const Color(0xFFEF4444))
-                .withOpacity(0.3),
+            color: baseColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -463,7 +463,7 @@ class _ScanPageState extends State<ScanPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -489,7 +489,7 @@ class _ScanPageState extends State<ScanPage> {
                     Text(
                       result.message,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         fontSize: 14,
                       ),
                     ),
@@ -514,7 +514,7 @@ class _ScanPageState extends State<ScanPage> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: result.isValid ? const Color(0xFF10B981) : const Color(0xFFEF4444),
+                        color: baseColor,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -549,9 +549,7 @@ class _ScanPageState extends State<ScanPage> {
               onPressed: () => setState(() => _scanResult = null),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: result.isValid
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFEF4444),
+                foregroundColor: baseColor,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),

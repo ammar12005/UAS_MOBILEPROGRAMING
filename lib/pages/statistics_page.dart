@@ -30,8 +30,6 @@ class StatisticsPage extends StatelessWidget {
     return scannedTickets.take(10).toList();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -51,8 +49,8 @@ class StatisticsPage extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF9333EA).withOpacity(0.2),
-                    const Color(0xFF3B82F6).withOpacity(0.2),
+                    const Color(0xFF9333EA).withValues(alpha: 0.2), // PERBAIKAN: withValues
+                    const Color(0xFF3B82F6).withValues(alpha: 0.2), // PERBAIKAN: withValues
                   ],
                 ),
               ),
@@ -123,7 +121,6 @@ class StatisticsPage extends StatelessWidget {
 
                   const SizedBox(height: 32),
 
-                  // Event Performance Section
                   _buildSectionHeader('Performa per Event'),
                   const SizedBox(height: 16),
                   if (events.isEmpty)
@@ -133,7 +130,6 @@ class StatisticsPage extends StatelessWidget {
 
                   const SizedBox(height: 32),
 
-                  // Recent Activity Section
                   _buildSectionHeader('Check-in Terbaru'),
                   const SizedBox(height: 16),
                   _buildRecentScansCard(),
@@ -172,9 +168,9 @@ class StatisticsPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN: withValues
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // PERBAIKAN: withValues
       ),
       child: Center(
         child: Column(
@@ -182,13 +178,13 @@ class StatisticsPage extends StatelessWidget {
             Icon(
               icon,
               size: 64,
-              color: Colors.white.withOpacity(0.3),
+              color: Colors.white.withValues(alpha: 0.3), // PERBAIKAN: withValues
             ),
             const SizedBox(height: 16),
             Text(
               message,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5), // PERBAIKAN: withValues
                 fontSize: 16,
               ),
             ),
@@ -207,7 +203,8 @@ class StatisticsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: gradient.colors.first.withOpacity(0.3),
+            // PERBAIKAN: Mengambil warna pertama gradient lalu set transparansi
+            color: (gradient as LinearGradient).colors.first.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -232,7 +229,7 @@ class StatisticsPage extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9), // PERBAIKAN: withValues
               fontSize: 12,
             ),
             textAlign: TextAlign.center,
@@ -253,9 +250,9 @@ class StatisticsPage extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN: withValues
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // PERBAIKAN: withValues
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,7 +290,7 @@ class StatisticsPage extends StatelessWidget {
                     Text(
                       DateFormat('dd MMM yyyy').format(event.date),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6), // PERBAIKAN
                         fontSize: 13,
                       ),
                     ),
@@ -324,7 +321,7 @@ class StatisticsPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: salePercentage,
-              backgroundColor: Colors.white.withOpacity(0.2),
+              backgroundColor: Colors.white.withValues(alpha: 0.2), // PERBAIKAN
               valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
               minHeight: 8,
             ),
@@ -368,7 +365,7 @@ class StatisticsPage extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.white.withValues(alpha: 0.6), // PERBAIKAN: withValues
             fontSize: 11,
           ),
         ),
@@ -392,9 +389,9 @@ class StatisticsPage extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN: withValues
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // PERBAIKAN
       ),
       child: ListView.separated(
         shrinkWrap: true,
@@ -402,7 +399,7 @@ class StatisticsPage extends StatelessWidget {
         itemCount: recentScans.length,
         separatorBuilder: (_, __) => Divider(
           height: 1,
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN: withValues
         ),
         itemBuilder: (context, index) {
           final scan = recentScans[index];
@@ -455,14 +452,14 @@ class StatisticsPage extends StatelessWidget {
                         event.name,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6), // PERBAIKAN
                         ),
                       ),
                       Text(
                         scan.code,
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.white.withOpacity(0.4),
+                          color: Colors.white.withValues(alpha: 0.4), // PERBAIKAN
                           fontFamily: 'monospace',
                         ),
                       ),
@@ -485,7 +482,7 @@ class StatisticsPage extends StatelessWidget {
                     Text(
                       DateFormat('dd MMM').format(scan.scannedAt!),
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.5),
+                        color: Colors.white.withValues(alpha: 0.5), // PERBAIKAN
                         fontSize: 11,
                       ),
                     ),

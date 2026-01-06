@@ -18,14 +18,13 @@ class EditEventPage extends StatefulWidget {
 
 class _EditEventPageState extends State<EditEventPage> {
   final _formKey = GlobalKey<FormState>();
-  
   late TextEditingController _nameController;
   late TextEditingController _locationController;
   late TextEditingController _capacityController;
   late TextEditingController _priceController;
   late TextEditingController _descriptionController;
   late DateTime _selectedDate;
-  bool _isSaving = false;
+  late TimeOfDay _selectedTime;
 
   @override
   void initState() {
@@ -36,6 +35,7 @@ class _EditEventPageState extends State<EditEventPage> {
     _priceController = TextEditingController(text: widget.event.price.toString());
     _descriptionController = TextEditingController(text: widget.event.description);
     _selectedDate = widget.event.date;
+    _selectedTime = TimeOfDay.fromDateTime(widget.event.date);
   }
 
   @override
@@ -48,461 +48,385 @@ class _EditEventPageState extends State<EditEventPage> {
     super.dispose();
   }
 
-  bool _hasChanges() {
-    return _nameController.text != widget.event.name ||
-           _locationController.text != widget.event.location ||
-           _capacityController.text != widget.event.capacity.toString() ||
-           _priceController.text != widget.event.price.toString() ||
-           _descriptionController.text != widget.event.description ||
-           _selectedDate != widget.event.date;
-  }
-
-  Future<bool> _onWillPop() async {
-    if (!_hasChanges()) return true;
-    
-    final shouldPop = await showDialog<bool>(
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Perubahan Belum Disimpan'),
-        content: const Text('Yakin ingin keluar tanpa menyimpan perubahan?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Keluar'),
-          ),
-        ],
-      ),
-    );
-    
-    return shouldPop ?? false;
-  }
-
-  Future<void> _pickDateTime() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate.isAfter(DateTime.now()) 
-          ? _selectedDate 
-          : DateTime.now(),
+      initialDate: _selectedDate,
       firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: const ColorScheme.dark(
               primary: Color(0xFF9333EA),
               onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
+              surface: Color(0xFF1E293B),
+              onSurface: Colors.white,
             ),
           ),
           child: child!,
         );
       },
     );
-    
-    if (date != null) {
-      final time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDate),
-        builder: (context, child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(
-                primary: Color(0xFF9333EA),
-                onPrimary: Colors.white,
-                surface: Colors.white,
-                onSurface: Colors.black,
-              ),
-            ),
-            child: child!,
-          );
-        },
-      );
-      
-      if (time != null) {
-        setState(() {
-          _selectedDate = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
+
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
     }
   }
 
-  Future<void> _saveEvent() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSaving = true);
-
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    final updatedEvent = Event(
-      id: widget.event.id,
-      name: _nameController.text.trim(),
-      date: _selectedDate,
-      location: _locationController.text.trim(),
-      capacity: int.parse(_capacityController.text),
-      price: double.parse(_priceController.text),
-      description: _descriptionController.text.trim(),
-      ticketsSold: widget.event.ticketsSold,
+  Future<void> _selectTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF9333EA),
+              onPrimary: Colors.white,
+              surface: Color(0xFF1E293B),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
-    widget.onEventUpdated(updatedEvent);
+    if (picked != null) {
+      setState(() => _selectedTime = picked);
+    }
+  }
 
-    if (!mounted) return;
+  void _saveChanges() {
+    if (_formKey.currentState!.validate()) {
+      final capacity = int.tryParse(_capacityController.text) ?? 0;
+      
+      if (capacity < widget.event.ticketsSold) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Kapasitas tidak boleh kurang dari tiket yang sudah terjual (${widget.event.ticketsSold})',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+        return;
+      }
 
-    setState(() => _isSaving = false);
+      final updatedDate = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Text('Event berhasil diperbarui!'),
-          ],
+      final updatedEvent = Event(
+        id: widget.event.id,
+        name: _nameController.text.trim(),
+        date: updatedDate,
+        location: _locationController.text.trim(),
+        capacity: capacity,
+        price: double.tryParse(_priceController.text) ?? 0,
+        description: _descriptionController.text.trim(),
+        ticketsSold: widget.event.ticketsSold,
+      );
+
+      widget.onEventUpdated(updatedEvent);
+      Navigator.pop(context, updatedEvent);
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Event berhasil diperbarui'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-
-    Navigator.pop(context);
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldPop = await _onWillPop();
-        if (shouldPop && mounted) {
-          Navigator.pop(context);
-        }
-      },
-      child: Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF0F172A), Color(0xFF581C87), Color(0xFF0F172A)],
-            ),
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF0F172A), Color(0xFF581C87), Color(0xFF0F172A)],
           ),
-          child: SafeArea(
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        const Color(0xFF9333EA).withOpacity(0.2),
-                        const Color(0xFF3B82F6).withOpacity(0.2),
-                      ],
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () async {
-                          final shouldPop = await _onWillPop();
-                          if (shouldPop && mounted) {
-                            Navigator.pop(context);
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Edit Event',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Perbarui detail event Anda',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Color(0xFFC4B5FD),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFF9333EA).withValues(alpha: 0.2), // Perbaikan withOpacity
+                      const Color(0xFF3B82F6).withValues(alpha: 0.2), // Perbaikan withOpacity
                     ],
                   ),
                 ),
-                Expanded(
-                  child: Form(
-                    key: _formKey,
-                    child: ListView(
-                      padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back, color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const SizedBox(width: 12),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (widget.event.ticketsSold > 0)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 20),
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.orange.withOpacity(0.3),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: Colors.orange.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.warning_amber_rounded,
-                                    color: Colors.orange,
-                                    size: 24,
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Text(
-                                    'Sudah ada ${widget.event.ticketsSold} tiket terjual. Kapasitas tidak bisa kurang dari ini.',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.orange,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        Text(
+                          'Edit Event',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
                           ),
-                        _buildLabel('Nama Event'),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          controller: _nameController,
-                          hint: 'Contoh: Tech Conference 2025',
-                          icon: Icons.event,
-                          validator: (v) => v?.isEmpty ?? true ? 'Nama event harus diisi' : null,
                         ),
-                        const SizedBox(height: 20),
-                        _buildLabel('Lokasi'),
-                        const SizedBox(height: 8),
-                        _buildTextField(
-                          controller: _locationController,
-                          hint: 'Contoh: Jakarta Convention Center',
-                          icon: Icons.location_on,
-                          validator: (v) => v?.isEmpty ?? true ? 'Lokasi harus diisi' : null,
+                        SizedBox(height: 4),
+                        Text(
+                          'Perbarui detail event Anda',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFFC4B5FD),
+                          ),
                         ),
-                        const SizedBox(height: 20),
-                        _buildLabel('Tanggal & Waktu'),
-                        const SizedBox(height: 8),
-                        InkWell(
-                          onTap: _pickDateTime,
-                          child: Container(
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildLabel('Nama Event'),
+                          _buildTextField(
+                            controller: _nameController,
+                            hint: 'Masukkan nama event',
+                            icon: Icons.event,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Nama event tidak boleh kosong';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          _buildLabel('Tanggal & Waktu'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDateTimeButton(
+                                  icon: Icons.calendar_today,
+                                  text: DateFormat('dd MMM yyyy').format(_selectedDate),
+                                  onPressed: _selectDate,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildDateTimeButton(
+                                  icon: Icons.access_time,
+                                  text: _selectedTime.format(context),
+                                  onPressed: _selectTime,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          _buildLabel('Lokasi'),
+                          _buildTextField(
+                            controller: _locationController,
+                            hint: 'Masukkan lokasi event',
+                            icon: Icons.location_on,
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Lokasi tidak boleh kosong';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 20),
+
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLabel('Kapasitas'),
+                                    _buildTextField(
+                                      controller: _capacityController,
+                                      hint: 'Jumlah',
+                                      icon: Icons.people,
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (value == null || value.trim().isEmpty) return 'Wajib diisi';
+                                        final capacity = int.tryParse(value);
+                                        if (capacity == null || capacity <= 0) return 'Tidak valid';
+                                        if (capacity < widget.event.ticketsSold) return 'Min ${widget.event.ticketsSold}';
+                                        return null;
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildLabel('Harga'),
+                                    _buildTextField(
+                                      controller: _priceController,
+                                      hint: 'Rupiah',
+                                      icon: Icons.payments,
+                                      keyboardType: TextInputType.number,
+                                      validator: (value) {
+                                        if (value == null || value.trim().isEmpty) return 'Wajib diisi';
+                                        final price = double.tryParse(value);
+                                        if (price == null || price < 0) return 'Tidak valid';
+                                        return null;
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          _buildLabel('Deskripsi (Opsional)'),
+                          _buildTextField(
+                            controller: _descriptionController,
+                            hint: 'Tambahkan deskripsi event',
+                            icon: Icons.description,
+                            maxLines: 4,
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Info Tiket Terjual
+                          Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(16),
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1), // Perbaikan
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.3), // Perbaikan
                               ),
                             ),
                             child: Row(
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(10),
+                                  padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
                                     ),
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Icon(
-                                    Icons.calendar_today,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
+                                  child: const Icon(Icons.info_outline, color: Colors.white, size: 20),
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(width: 12),
                                 Expanded(
-                                  child: Text(
-                                    DateFormat('dd MMM yyyy • HH:mm').format(_selectedDate),
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                                Icon(
-                                  Icons.edit,
-                                  color: Colors.white.withOpacity(0.5),
-                                  size: 20,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildLabel('Kapasitas'),
-                                  const SizedBox(height: 8),
-                                  _buildTextField(
-                                    controller: _capacityController,
-                                    hint: '100',
-                                    icon: Icons.people,
-                                    keyboardType: TextInputType.number,
-                                    validator: (v) {
-                                      if (v?.isEmpty ?? true) return 'Wajib diisi';
-                                      final cap = int.tryParse(v!);
-                                      if (cap == null) return 'Harus angka';
-                                      if (cap <= 0) return 'Harus > 0';
-                                      if (cap < widget.event.ticketsSold) {
-                                        return 'Min ${widget.event.ticketsSold}';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildLabel('Harga (Rp)'),
-                                  const SizedBox(height: 8),
-                                  _buildTextField(
-                                    controller: _priceController,
-                                    hint: '50000',
-                                    icon: Icons.payments,
-                                    keyboardType: TextInputType.number,
-                                    validator: (v) {
-                                      if (v?.isEmpty ?? true) return 'Wajib diisi';
-                                      final price = double.tryParse(v!);
-                                      if (price == null) return 'Harus angka';
-                                      if (price < 0) return 'Tidak boleh negatif';
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        _buildLabel('Deskripsi'),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
-                            ),
-                          ),
-                          child: TextFormField(
-                            controller: _descriptionController,
-                            maxLines: 5,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              hintText: 'Jelaskan detail acara Anda di sini...',
-                              hintStyle: TextStyle(
-                                color: Colors.white.withOpacity(0.4),
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.all(16),
-                            ),
-                            validator: (v) => v?.isEmpty ?? true ? 'Deskripsi harus diisi' : null,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        Container(
-                          height: 56,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF9333EA).withOpacity(0.5),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: ElevatedButton(
-                            onPressed: _isSaving ? null : _saveEvent,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              disabledBackgroundColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                            child: _isSaving
-                                ? const SizedBox(
-                                    height: 24,
-                                    width: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2.5,
-                                    ),
-                                  )
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Icon(Icons.save, size: 24),
-                                      SizedBox(width: 12),
+                                      const Text(
+                                        'Tiket Terjual',
+                                        style: TextStyle(color: Color(0xFFC4B5FD), fontSize: 12),
+                                      ),
                                       Text(
-                                        'Simpan Perubahan',
-                                        style: TextStyle(
-                                          fontSize: 18,
+                                        '${widget.event.ticketsSold} tiket',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ],
                                   ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
+                          const SizedBox(height: 32),
+
+                          // Save Button
+                          Container(
+                            height: 56,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
+                              ),
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF9333EA).withValues(alpha: 0.5), // Perbaikan
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _saveChanges,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.save, size: 24, color: Colors.white),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Simpan Perubahan',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -510,12 +434,11 @@ class _EditEventPageState extends State<EditEventPage> {
   }
 
   Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -525,39 +448,62 @@ class _EditEventPageState extends State<EditEventPage> {
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
+    int? maxLines,
     String? Function(String?)? validator,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
       ),
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        maxLines: maxLines ?? 1,
         style: const TextStyle(color: Colors.white),
+        validator: validator,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
-          prefixIcon: Container(
-            margin: const EdgeInsets.all(8),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
-              ),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
-          ),
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)), // Perbaikan
+          prefixIcon: Icon(icon, color: const Color(0xFFC4B5FD)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
+          contentPadding: const EdgeInsets.all(16),
+          errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 11),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDateTimeButton({
+    required IconData icon,
+    required String text,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
+      ),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0xFFC4B5FD)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  text,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ),
+            ],
           ),
         ),
-        validator: validator,
       ),
     );
   }

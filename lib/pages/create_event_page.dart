@@ -5,6 +5,7 @@ import '../models.dart';
 class CreateEventPage extends StatefulWidget {
   final Function(Event) onEventCreated;
   const CreateEventPage({super.key, required this.onEventCreated});
+
   @override
   State<CreateEventPage> createState() => _CreateEventPageState();
 }
@@ -18,7 +19,17 @@ class _CreateEventPageState extends State<CreateEventPage> {
   final _d = TextEditingController();
   DateTime _date = DateTime.now().add(const Duration(days: 7));
 
-  _pickDate() async {
+  @override
+  void dispose() {
+    _n.dispose();
+    _l.dispose();
+    _c.dispose();
+    _p.dispose();
+    _d.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
     final d = await showDatePicker(
       context: context,
       initialDate: _date,
@@ -27,35 +38,38 @@ class _CreateEventPageState extends State<CreateEventPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: const ColorScheme.dark( // Menggunakan dark agar kontras dengan UI Anda
               primary: Color(0xFF9333EA),
               onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
+              surface: Color(0xFF1E293B),
+              onSurface: Colors.white,
             ),
           ),
           child: child!,
         );
       },
     );
+
     if (d != null) {
+      if (!mounted) return;
       final t = await showTimePicker(
         context: context,
         initialTime: TimeOfDay.fromDateTime(_date),
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(
+              colorScheme: const ColorScheme.dark(
                 primary: Color(0xFF9333EA),
                 onPrimary: Colors.white,
-                surface: Colors.white,
-                onSurface: Colors.black,
+                surface: Color(0xFF1E293B),
+                onSurface: Colors.white,
               ),
             ),
             child: child!,
           );
         },
       );
+
       if (t != null) {
         setState(() => _date = DateTime(d.year, d.month, d.day, t.hour, t.minute));
       }
@@ -82,8 +96,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF9333EA).withOpacity(0.2),
-                      const Color(0xFF3B82F6).withOpacity(0.2),
+                      const Color(0xFF9333EA).withValues(alpha: 0.2), // PERBAIKAN: withValues
+                      const Color(0xFF3B82F6).withValues(alpha: 0.2),
                     ],
                   ),
                 ),
@@ -123,39 +137,37 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   child: ListView(
                     padding: const EdgeInsets.all(24),
                     children: [
-                      // Nama Event
                       _buildLabel('Nama Event'),
                       const SizedBox(height: 8),
                       _buildTextField(
                         controller: _n,
-                        hint: 'Contoh: Tech Conference 2025',
+                        hint: 'Contoh: Tech Conference 2026',
                         icon: Icons.event,
-                        validator: (v) => v?.isEmpty ?? true ? 'Nama event harus diisi' : null,
+                        validator: (v) => v == null || v.isEmpty ? 'Nama event harus diisi' : null,
                       ),
                       const SizedBox(height: 20),
 
-                      // Lokasi
                       _buildLabel('Lokasi'),
                       const SizedBox(height: 8),
                       _buildTextField(
                         controller: _l,
                         hint: 'Contoh: Jakarta Convention Center',
                         icon: Icons.location_on,
-                        validator: (v) => v?.isEmpty ?? true ? 'Lokasi harus diisi' : null,
+                        validator: (v) => v == null || v.isEmpty ? 'Lokasi harus diisi' : null,
                       ),
                       const SizedBox(height: 20),
 
-                      // Tanggal & Waktu
                       _buildLabel('Tanggal & Waktu'),
                       const SizedBox(height: 8),
                       InkWell(
                         onTap: _pickDate,
+                        borderRadius: BorderRadius.circular(16),
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN: withValues
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white.withOpacity(0.2)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                           ),
                           child: Row(
                             children: [
@@ -180,14 +192,13 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   ),
                                 ),
                               ),
-                              Icon(Icons.edit, color: Colors.white.withOpacity(0.5), size: 20),
+                              Icon(Icons.edit, color: Colors.white.withValues(alpha: 0.5), size: 20),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 20),
 
-                      // Kapasitas & Harga
                       Row(
                         children: [
                           Expanded(
@@ -201,7 +212,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   hint: '100',
                                   icon: Icons.people,
                                   keyboardType: TextInputType.number,
-                                  validator: (v) => v?.isEmpty ?? true ? 'Wajib diisi' : null,
+                                  validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                                 ),
                               ],
                             ),
@@ -218,7 +229,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   hint: '50000',
                                   icon: Icons.payments,
                                   keyboardType: TextInputType.number,
-                                  validator: (v) => v?.isEmpty ?? true ? 'Wajib diisi' : null,
+                                  validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                                 ),
                               ],
                             ),
@@ -227,14 +238,13 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Deskripsi
                       _buildLabel('Deskripsi'),
                       const SizedBox(height: 8),
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.2)),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                         ),
                         child: TextFormField(
                           controller: _d,
@@ -242,11 +252,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Jelaskan detail acara Anda di sini...',
-                            hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
                           ),
-                          validator: (v) => v?.isEmpty ?? true ? 'Deskripsi harus diisi' : null,
+                          validator: (v) => v == null || v.isEmpty ? 'Deskripsi harus diisi' : null,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -261,7 +271,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF9333EA).withOpacity(0.5),
+                              color: const Color(0xFF9333EA).withValues(alpha: 0.5),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -275,9 +285,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                 name: _n.text,
                                 date: _date,
                                 location: _l.text,
-                                capacity: int.parse(_c.text),
-                                price: double.parse(_p.text),
+                                capacity: int.tryParse(_c.text) ?? 0,
+                                price: double.tryParse(_p.text) ?? 0.0,
                                 description: _d.text,
+                                ticketsSold: 0, // Default nilai awal
                               ));
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -301,6 +312,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
@@ -353,9 +365,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: TextFormField(
         controller: controller,
@@ -363,7 +375,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
           prefixIcon: Container(
             margin: const EdgeInsets.all(8),
             padding: const EdgeInsets.all(8),

@@ -36,15 +36,30 @@ Future<void> _createDefaultAccount() async {
           email: 'user@gmail.com',
           password: 'user123',
         ),
+        User(
+          id: 3,
+          name: 'Ammar',
+          email: 'ammar@gmail.com',
+          password: 'ammar123',
+        ),
       ];
       
       await StorageService.saveUsers(defaultUsers);
-      print('✅ Akun default berhasil dibuat:');
-      print('   Email: ammarr23@gmail.com | Password: ammar123');
-      print('   Email: user@gmail.com  | Password: user123');
+      // Debug mode only - akan otomatis hilang di production build
+      assert(() {
+        debugPrint('✅ Akun default berhasil dibuat:');
+        debugPrint('   1. Email: admin@gmail.com  | Password: 123456');
+        debugPrint('   2. Email: user@gmail.com   | Password: user123');
+        debugPrint('   3. Email: ammar@gmail.com  | Password: ammar123');
+        return true;
+      }());
     }
   } catch (e) {
-    print('⚠️ Error membuat akun default: $e');
+    // Debug mode only
+    assert(() {
+      debugPrint('⚠️ Error membuat akun default: $e');
+      return true;
+    }());
   }
 }
 

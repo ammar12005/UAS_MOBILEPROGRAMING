@@ -102,7 +102,6 @@ class _EditEventPageState extends State<EditEventPage> {
     if (_formKey.currentState!.validate()) {
       final capacity = int.tryParse(_capacityController.text) ?? 0;
       
-      // Validasi kapasitas tidak boleh kurang dari tiket yang sudah terjual
       if (capacity < widget.event.ticketsSold) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -145,7 +144,6 @@ class _EditEventPageState extends State<EditEventPage> {
       );
 
       widget.onEventUpdated(updatedEvent);
-      
       Navigator.pop(context, updatedEvent);
       
       ScaffoldMessenger.of(context).showSnackBar(
@@ -185,8 +183,8 @@ class _EditEventPageState extends State<EditEventPage> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF9333EA).withOpacity(0.2),
-                      const Color(0xFF3B82F6).withOpacity(0.2),
+                      const Color(0xFF9333EA).withValues(alpha: 0.2), // Perbaikan withOpacity
+                      const Color(0xFF3B82F6).withValues(alpha: 0.2), // Perbaikan withOpacity
                     ],
                   ),
                 ),
@@ -232,7 +230,6 @@ class _EditEventPageState extends State<EditEventPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Nama Event
                           _buildLabel('Nama Event'),
                           _buildTextField(
                             controller: _nameController,
@@ -247,7 +244,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Tanggal & Waktu
                           _buildLabel('Tanggal & Waktu'),
                           Row(
                             children: [
@@ -270,7 +266,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Lokasi
                           _buildLabel('Lokasi'),
                           _buildTextField(
                             controller: _locationController,
@@ -285,7 +280,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Kapasitas & Harga
                           Row(
                             children: [
                               Expanded(
@@ -302,11 +296,11 @@ class _EditEventPageState extends State<EditEventPage> {
                                         if (value == null || value.trim().isEmpty) {
                                           return 'Wajib diisi';
                                         }
-                                        final capacity = int.tryParse(value);
-                                        if (capacity == null || capacity <= 0) {
+                                        final cap = int.tryParse(value);
+                                        if (cap == null || cap <= 0) {
                                           return 'Tidak valid';
                                         }
-                                        if (capacity < widget.event.ticketsSold) {
+                                        if (cap < widget.event.ticketsSold) {
                                           return 'Min ${widget.event.ticketsSold}';
                                         }
                                         return null;
@@ -344,7 +338,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Deskripsi
                           _buildLabel('Deskripsi (Opsional)'),
                           _buildTextField(
                             controller: _descriptionController,
@@ -358,10 +351,10 @@ class _EditEventPageState extends State<EditEventPage> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6).withOpacity(0.1),
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1), // Perbaikan
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFF3B82F6).withOpacity(0.3),
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.3), // Perbaikan
                               ),
                             ),
                             child: Row(
@@ -418,7 +411,7 @@ class _EditEventPageState extends State<EditEventPage> {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF9333EA).withOpacity(0.5),
+                                  color: const Color(0xFF9333EA).withValues(alpha: 0.5), // Perbaikan
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -436,13 +429,14 @@ class _EditEventPageState extends State<EditEventPage> {
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.save, size: 24),
+                                  Icon(Icons.save, size: 24, color: Colors.white),
                                   SizedBox(width: 12),
                                   Text(
                                     'Simpan Perubahan',
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ],
@@ -486,9 +480,9 @@ class _EditEventPageState extends State<EditEventPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
       ),
       child: TextFormField(
         controller: controller,
@@ -498,7 +492,7 @@ class _EditEventPageState extends State<EditEventPage> {
         validator: validator,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)), // Perbaikan
           prefixIcon: Icon(icon, color: const Color(0xFFC4B5FD)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
@@ -521,9 +515,9 @@ class _EditEventPageState extends State<EditEventPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
       ),
       child: InkWell(
         onTap: onPressed,
