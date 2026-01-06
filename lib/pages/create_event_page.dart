@@ -38,7 +38,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark( // Menggunakan dark agar kontras dengan UI Anda
+            colorScheme: const ColorScheme.dark(
               primary: Color(0xFF9333EA),
               onPrimary: Colors.white,
               surface: Color(0xFF1E293B),
@@ -90,13 +90,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF9333EA).withValues(alpha: 0.2), // PERBAIKAN: withValues
+                      const Color(0xFF9333EA).withValues(alpha: 0.2),
                       const Color(0xFF3B82F6).withValues(alpha: 0.2),
                     ],
                   ),
@@ -130,7 +129,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                 ),
               ),
 
-              // Form
               Expanded(
                 child: Form(
                   key: _formKey,
@@ -165,7 +163,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN: withValues
+                            color: Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                           ),
@@ -261,7 +259,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Button Simpan
                       Container(
                         height: 56,
                         decoration: BoxDecoration(
@@ -280,7 +277,8 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         child: ElevatedButton(
                           onPressed: () {
                             if (_formKey.currentState!.validate()) {
-                              widget.onEventCreated(Event(
+                              // ✅ Buat event baru
+                              final newEvent = Event(
                                 id: DateTime.now().millisecondsSinceEpoch,
                                 name: _n.text,
                                 date: _date,
@@ -288,25 +286,13 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                 capacity: int.tryParse(_c.text) ?? 0,
                                 price: double.tryParse(_p.text) ?? 0.0,
                                 description: _d.text,
-                                ticketsSold: 0, // Default nilai awal
-                              ));
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Row(
-                                    children: [
-                                      Icon(Icons.check_circle, color: Colors.white),
-                                      SizedBox(width: 12),
-                                      Text('Event berhasil dibuat!'),
-                                    ],
-                                  ),
-                                  backgroundColor: Colors.green,
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
+                                ticketsSold: 0,
                               );
+                              
+                              // ✅ Kirim ke callback (yang akan save ke storage)
+                              widget.onEventCreated(newEvent);
+                              
+                              // ✅ HAPUS SnackBar dari sini, biar tampil di dashboard
                             }
                           },
                           style: ElevatedButton.styleFrom(
