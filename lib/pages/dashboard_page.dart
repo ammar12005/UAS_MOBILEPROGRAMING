@@ -10,9 +10,9 @@ import 'login_page.dart';
 
 class DashboardPage extends StatefulWidget {
   final User user;
-  
+
   const DashboardPage({super.key, required this.user});
-  
+
   @override
   State<DashboardPage> createState() => _DashboardPageState();
 }
@@ -28,15 +28,15 @@ class _DashboardPageState extends State<DashboardPage> {
     super.initState();
     _loadData();
   }
-  
+
   Future<void> _loadData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
+
     // Memuat data berdasarkan ID user
     final loadedEvents = await StorageService.getEvents(widget.user.id);
     final loadedTickets = await StorageService.getTickets(widget.user.id);
-    
+
     if (mounted) {
       setState(() {
         events = loadedEvents;
@@ -49,15 +49,61 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _handleDeleteEvent(int eventId) async {
     final updatedEvents = events.where((e) => e.id != eventId).toList();
     final updatedTickets = tickets.where((t) => t.eventId != eventId).toList();
-    
+
     setState(() {
       events = updatedEvents;
       tickets = updatedTickets;
     });
-    
+
     // Simpan perubahan secara permanen
     await StorageService.saveEvents(widget.user.id, updatedEvents);
     await StorageService.saveTickets(widget.user.id, updatedTickets);
+  }
+
+  // ✅ PERBAIKAN: Fungsi untuk handle create event dengan save langsung
+  Future<void> _handleCreateEvent() async {
+    final result = await Navigator.push<Event>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateEventPage(
+          onEventCreated: (event) {
+            // Return event ke halaman sebelumnya
+            Navigator.pop(context, event);
+          },
+        ),
+      ),
+    );
+
+    // ✅ Jika ada event baru, tambahkan dan simpan SEGERA
+    if (result != null) {
+      final updatedEvents = [...events, result];
+      setState(() {
+        events = updatedEvents;
+      });
+
+      // ✅ SIMPAN KE STORAGE LANGSUNG
+      await StorageService.saveEvents(widget.user.id, updatedEvents);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              // ✅ Pindahkan 'const' ke sini
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Event berhasil disimpan!'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -78,7 +124,7 @@ class _DashboardPageState extends State<DashboardPage> {
         ),
       );
     }
-    
+
     final pages = [
       EventsPage(
         user: widget.user,
@@ -93,8 +139,8 @@ class _DashboardPageState extends State<DashboardPage> {
           await StorageService.saveTickets(widget.user.id, updatedTickets);
         },
         onEventDeleted: _handleDeleteEvent,
-        // Tambahkan refresh callback untuk memastikan data tetap sinkron
-        onRefresh: _loadData, 
+        onRefresh: _loadData,
+        onCreateEvent: _handleCreateEvent, // ✅ Pass fungsi create event
       ),
       ScanPage(
         tickets: tickets,
@@ -131,8 +177,10 @@ class _DashboardPageState extends State<DashboardPage> {
           backgroundColor: Colors.transparent,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.event), label: "Events"),
-            BottomNavigationBarItem(icon: Icon(Icons.qr_code_scanner), label: "Scan"),
-            BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: "Statistik"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.qr_code_scanner), label: "Scan"),
+            BottomNavigationBarItem(
+                icon: Icon(Icons.bar_chart), label: "Statistik"),
           ],
         ),
       ),
@@ -147,7 +195,8 @@ class EventsPage extends StatelessWidget {
   final Function(List<Event>) onEventsChanged;
   final Function(List<Ticket>) onTicketsChanged;
   final Function(int) onEventDeleted;
-  final Future<void> Function() onRefresh; // New refresh callback
+  final Future<void> Function() onRefresh;
+  final Future<void> Function() onCreateEvent; // ✅ Tambah parameter
 
   const EventsPage({
     super.key,
@@ -158,6 +207,7 @@ class EventsPage extends StatelessWidget {
     required this.onTicketsChanged,
     required this.onEventDeleted,
     required this.onRefresh,
+    required this.onCreateEvent, // ✅ Tambah required
   });
 
   void _showDeleteDialog(BuildContext context, Event event) {
@@ -227,7 +277,8 @@ class EventsPage extends StatelessWidget {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.auto_awesome, color: Color(0xFFFBBF24), size: 32),
+                            Icon(Icons.auto_awesome,
+                                color: Color(0xFFFBBF24), size: 32),
                             SizedBox(width: 12),
                             Text(
                               'Event Manager Pro',
@@ -253,22 +304,9 @@ class EventsPage extends StatelessWidget {
                   Row(
                     children: [
                       IconButton(
-                        onPressed: () async {
-                          // Gunakan await untuk menunggu kembali dari halaman create
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CreateEventPage(
-                                onEventCreated: (event) {
-                                  onEventsChanged([...events, event]);
-                                },
-                              ),
-                            ),
-                          );
-                          // Paksa load ulang setelah kembali
-                          await onRefresh(); 
-                        },
-                        icon: const Icon(Icons.add_circle, color: Color(0xFF9333EA), size: 32),
+                        onPressed: onCreateEvent, // ✅ Gunakan fungsi baru
+                        icon: const Icon(Icons.add_circle,
+                            color: Color(0xFF9333EA), size: 32),
                       ),
                       IconButton(
                         icon: const Icon(Icons.logout, color: Colors.white),
@@ -277,13 +315,19 @@ class EventsPage extends StatelessWidget {
                             context: context,
                             builder: (context) => AlertDialog(
                               backgroundColor: const Color(0xFF1E293B),
-                              title: const Text('Logout', style: TextStyle(color: Colors.white)),
-                              content: const Text('Yakin ingin keluar?', style: TextStyle(color: Colors.white70)),
+                              title: const Text('Logout',
+                                  style: TextStyle(color: Colors.white)),
+                              content: const Text('Yakin ingin keluar?',
+                                  style: TextStyle(color: Colors.white70)),
                               actions: [
-                                TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+                                TextButton(
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
+                                    child: const Text('Batal')),
                                 TextButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                                  style: TextButton.styleFrom(
+                                      foregroundColor: Colors.redAccent),
                                   child: const Text('Keluar'),
                                 ),
                               ],
@@ -292,7 +336,10 @@ class EventsPage extends StatelessWidget {
                           if (confirm == true) {
                             await StorageService.logout();
                             if (context.mounted) {
-                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+                              Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const LoginPage()));
                             }
                           }
                         },
@@ -306,17 +353,23 @@ class EventsPage extends StatelessWidget {
               child: RefreshIndicator(
                 onRefresh: onRefresh,
                 child: events.isEmpty
-                    ? ListView( // Gunakan listview agar RefreshIndicator bekerja
+                    ? ListView(
                         children: [
-                          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                          SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.3),
                           Center(
                             child: Column(
                               children: [
-                                Icon(Icons.event_busy, size: 80, color: Colors.white.withValues(alpha: 0.3)),
+                                Icon(Icons.event_busy,
+                                    size: 80,
+                                    color: Colors.white.withValues(alpha: 0.3)),
                                 const SizedBox(height: 16),
                                 Text(
                                   'Belum ada event',
-                                  style: TextStyle(fontSize: 18, color: Colors.white.withValues(alpha: 0.7)),
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.7)),
                                 ),
                               ],
                             ),
@@ -329,19 +382,21 @@ class EventsPage extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final event = events[index];
                           final gradient = gradients[index % gradients.length];
-                          
+
                           return Container(
                             margin: const EdgeInsets.only(bottom: 16),
                             decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2)),
                             ),
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
                                 borderRadius: BorderRadius.circular(24),
-                                onLongPress: () => _showDeleteDialog(context, event),
+                                onLongPress: () =>
+                                    _showDeleteDialog(context, event),
                                 onTap: () async {
                                   await Navigator.push(
                                     context,
@@ -358,13 +413,13 @@ class EventsPage extends StatelessWidget {
                                       ),
                                     ),
                                   );
-                                  // Sinkronisasi data saat kembali dari detail
-                                  await onRefresh(); 
+                                  await onRefresh();
                                 },
                                 child: Padding(
                                   padding: const EdgeInsets.all(20),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
@@ -373,21 +428,27 @@ class EventsPage extends StatelessWidget {
                                             height: 56,
                                             decoration: BoxDecoration(
                                               gradient: gradient,
-                                              borderRadius: BorderRadius.circular(16),
+                                              borderRadius:
+                                                  BorderRadius.circular(16),
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: gradient.colors.first.withValues(alpha: 0.3),
+                                                  color: gradient.colors.first
+                                                      .withValues(alpha: 0.3),
                                                   blurRadius: 12,
                                                   offset: const Offset(0, 4),
                                                 ),
                                               ],
                                             ),
-                                            child: const Icon(Icons.calendar_today, color: Colors.white, size: 28),
+                                            child: const Icon(
+                                                Icons.calendar_today,
+                                                color: Colors.white,
+                                                size: 28),
                                           ),
                                           const SizedBox(width: 16),
                                           Expanded(
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: [
                                                 Text(
                                                   event.name,
@@ -400,11 +461,19 @@ class EventsPage extends StatelessWidget {
                                                 const SizedBox(height: 4),
                                                 Row(
                                                   children: [
-                                                    const Icon(Icons.access_time, color: Color(0xFFC4B5FD), size: 16),
+                                                    const Icon(
+                                                        Icons.access_time,
+                                                        color:
+                                                            Color(0xFFC4B5FD),
+                                                        size: 16),
                                                     const SizedBox(width: 4),
                                                     Text(
-                                                      DateFormat('dd MMM yyyy').format(event.date),
-                                                      style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
+                                                      DateFormat('dd MMM yyyy')
+                                                          .format(event.date),
+                                                      style: const TextStyle(
+                                                          fontSize: 14,
+                                                          color: Color(
+                                                              0xFFC4B5FD)),
                                                     ),
                                                   ],
                                                 ),
@@ -417,27 +486,37 @@ class EventsPage extends StatelessWidget {
                                       Container(
                                         padding: const EdgeInsets.all(12),
                                         decoration: BoxDecoration(
-                                          color: Colors.white.withValues(alpha: 0.05),
-                                          borderRadius: BorderRadius.circular(12),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.05),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
                                         child: Row(
                                           children: [
-                                            const Icon(Icons.location_on, color: Color(0xFFC4B5FD), size: 18),
+                                            const Icon(Icons.location_on,
+                                                color: Color(0xFFC4B5FD),
+                                                size: 18),
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
                                                 event.location,
-                                                style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
+                                                style: const TextStyle(
+                                                    fontSize: 14,
+                                                    color: Color(0xFFC4B5FD)),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
                                             const SizedBox(width: 16),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 4),
                                               decoration: BoxDecoration(
                                                 gradient: gradient,
-                                                borderRadius: BorderRadius.circular(8),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
                                               ),
                                               child: Text(
                                                 '${event.ticketsSold}/${event.capacity}',

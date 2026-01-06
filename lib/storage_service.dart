@@ -61,28 +61,77 @@ class StorageService {
     }
   }
 
-  // --- Events Management ---
+  // --- Events Management (DENGAN DEBUG LOGGING) ---
   static Future<List<Event>> getEvents(int userId) async {
     try {
-      final data = _box.get('${_prefix}events_$userId');
-      if (data == null) return [];
-      return (json.decode(data) as List).map((e) => Event.fromJson(e)).toList();
+      final key = '${_prefix}events_$userId';
+      final data = _box.get(key);
+      
+      if (kDebugMode) {
+        debugPrint('📖 GET EVENTS untuk userId: $userId');
+        debugPrint('   Key: $key');
+        debugPrint('   Data exists: ${data != null}');
+      }
+      
+      if (data == null) {
+        if (kDebugMode) debugPrint('   ❌ Tidak ada data event');
+        return [];
+      }
+      
+      final events = (json.decode(data) as List).map((e) => Event.fromJson(e)).toList();
+      
+      if (kDebugMode) {
+        debugPrint('   ✅ Berhasil load ${events.length} events:');
+        for (var event in events) {
+          debugPrint('      - ${event.name} (ID: ${event.id})');
+        }
+      }
+      
+      return events;
     } catch (e) {
+      if (kDebugMode) debugPrint('   ❌ Error getEvents: $e');
       return [];
     }
   }
 
   static Future<void> saveEvents(int userId, List<Event> events) async {
     try {
+      final key = '${_prefix}events_$userId';
       final jsonData = json.encode(events.map((e) => e.toJson()).toList());
-      await _box.put('${_prefix}events_$userId', jsonData);
+      
+      if (kDebugMode) {
+        debugPrint('💾 SAVE EVENTS untuk userId: $userId');
+        debugPrint('   Key: $key');
+        debugPrint('   Total events: ${events.length}');
+        for (var event in events) {
+          debugPrint('      - ${event.name} (ID: ${event.id})');
+        }
+      }
+      
+      await _box.put(key, jsonData);
       await _box.flush();
+      
+      // VERIFIKASI bahwa data benar-benar tersimpan
+      final verification = _box.get(key);
+      if (kDebugMode) {
+        if (verification != null) {
+          debugPrint('   ✅ VERIFIKASI: Data berhasil tersimpan di Hive');
+          
+          // Cek semua keys di Hive untuk debugging
+          debugPrint('   📋 Semua keys di Hive:');
+          for (var k in _box.keys) {
+            debugPrint('      - $k');
+          }
+        } else {
+          debugPrint('   ❌ VERIFIKASI GAGAL: Data tidak tersimpan!');
+        }
+      }
     } catch (e) {
-      if (kDebugMode) debugPrint('Error saveEvents: $e');
+      if (kDebugMode) debugPrint('   ❌ Error saveEvents: $e');
     }
   }
 
-  // --- Tickets Management (MEMPERBAIKI ERROR image_6cc83e.jpg) ---
+  // --- Tickets Management ---
   static Future<List<Ticket>> getTickets(int userId) async {
     try {
       final data = _box.get('${_prefix}tickets_$userId');

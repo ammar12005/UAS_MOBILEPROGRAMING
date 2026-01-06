@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+// PERBAIKAN: Menghapus import 'intl' karena tidak digunakan (unused import)
 import '../models.dart';
 
 class ScanPage extends StatefulWidget {
@@ -23,7 +24,7 @@ class _ScanPageState extends State<ScanPage> {
   final TextEditingController _manualCodeController = TextEditingController();
   bool _isScanning = false;
   ScanResult? _scanResult;
-  bool _isCameraActive = false; // Awalnya dimatikan agar lebih hemat resource
+  bool _isCameraActive = false;
 
   @override
   void dispose() {
@@ -34,7 +35,7 @@ class _ScanPageState extends State<ScanPage> {
 
   Future<void> _scanTicket(String ticketCode) async {
     final searchCode = ticketCode.trim().toUpperCase();
-
+    
     final ticketIndex = widget.tickets.indexWhere(
       (t) => t.code.toUpperCase() == searchCode,
     );
@@ -77,7 +78,6 @@ class _ScanPageState extends State<ScanPage> {
     final updatedTickets = List<Ticket>.from(widget.tickets);
     updatedTickets[ticketIndex] = updatedTicket;
 
-    // Memanggil callback dashboard untuk simpan permanen ke StorageService
     widget.onTicketsChanged(updatedTickets);
 
     setState(() {
@@ -103,10 +103,11 @@ class _ScanPageState extends State<ScanPage> {
       if (barcode.rawValue != null) {
         setState(() => _isScanning = true);
         _scanTicket(barcode.rawValue!);
-
-        // Delay singkat agar tidak menscan berulang kali dalam satu waktu
+        
         Future.delayed(const Duration(seconds: 2), () {
-          if (mounted) setState(() => _isScanning = false);
+          if (mounted) {
+            setState(() => _isScanning = false);
+          }
         });
       }
     }
@@ -155,9 +156,7 @@ class _ScanPageState extends State<ScanPage> {
   Widget _buildUpperStats(int total, int hadir, int sisa) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-      ),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -165,26 +164,17 @@ class _ScanPageState extends State<ScanPage> {
             children: [
               Icon(Icons.qr_code_scanner, color: Color(0xFFFBBF24), size: 32),
               SizedBox(width: 12),
-              Text(
-                'Validasi Tiket',
-                style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-              ),
+              Text('Validasi Tiket', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
             ],
           ),
           const SizedBox(height: 16),
           Row(
             children: [
-              _buildStatCard('$total', 'Total', Icons.confirmation_number,
-                  const Color(0xFF3B82F6)),
+              _buildStatCard('$total', 'Total', Icons.confirmation_number, const Color(0xFF3B82F6)),
               const SizedBox(width: 12),
-              _buildStatCard('$hadir', 'Hadir', Icons.check_circle,
-                  const Color(0xFF10B981)),
+              _buildStatCard('$hadir', 'Hadir', Icons.check_circle, const Color(0xFF10B981)),
               const SizedBox(width: 12),
-              _buildStatCard(
-                  '$sisa', 'Sisa', Icons.pending, const Color(0xFFF59E0B)),
+              _buildStatCard('$sisa', 'Sisa', Icons.pending, const Color(0xFFF59E0B)),
             ],
           ),
         ],
@@ -203,11 +193,7 @@ class _ScanPageState extends State<ScanPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Input Manual',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)),
+          const Text('Input Manual', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -217,22 +203,16 @@ class _ScanPageState extends State<ScanPage> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Masukkan kode tiket...',
-                    hintStyle:
-                        TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.05),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF9333EA),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: const Color(0xFF9333EA), borderRadius: BorderRadius.circular(12)),
                 child: IconButton(
                   onPressed: _handleManualScan,
                   icon: const Icon(Icons.check, color: Colors.white),
@@ -258,24 +238,21 @@ class _ScanPageState extends State<ScanPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Scan QR Code',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white)),
+              const Text('Scan QR Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               Switch(
                 value: _isCameraActive,
-                activeTrackColor:
-                    const Color(0xFFC4B5FD).withValues(alpha: 0.5),
+                // PERBAIKAN: Menghilangkan 'activeColor' yang deprecated, gunakan activeTrackColor
+                activeTrackColor: const Color(0xFFC4B5FD).withValues(alpha: 0.5),
                 thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return const Color(0xFFC4B5FD); // Warna saat aktif
+                    return const Color(0xFFC4B5FD);
                   }
-                  return null; // Warna default saat tidak aktif
+                  return null;
                 }),
                 onChanged: (val) {
                   setState(() {
                     _isCameraActive = val;
+                    // PERBAIKAN: Menambahkan kurung kurawal agar linting warning hilang
                     if (_isCameraActive) {
                       _scannerController.start();
                     } else {
@@ -292,26 +269,20 @@ class _ScanPageState extends State<ScanPage> {
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color:
-                      _isCameraActive ? const Color(0xFF9333EA) : Colors.grey,
-                  width: 2),
+              border: Border.all(color: _isCameraActive ? const Color(0xFF9333EA) : Colors.grey, width: 2),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: _isCameraActive
-                  ? MobileScanner(
-                      controller: _scannerController, onDetect: _handleQRScan)
+                  ? MobileScanner(controller: _scannerController, onDetect: _handleQRScan)
                   : Container(
                       color: Colors.black45,
                       child: const Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.videocam_off,
-                              color: Colors.white24, size: 50),
+                          Icon(Icons.videocam_off, color: Colors.white24, size: 50),
                           SizedBox(height: 8),
-                          Text('Kamera Tidak Aktif',
-                              style: TextStyle(color: Colors.white24)),
+                          Text('Kamera Tidak Aktif', style: TextStyle(color: Colors.white24)),
                         ],
                       ),
                     ),
@@ -322,8 +293,7 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
-  Widget _buildStatCard(
-      String value, String label, IconData icon, Color color) {
+  Widget _buildStatCard(String value, String label, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -335,12 +305,8 @@ class _ScanPageState extends State<ScanPage> {
         child: Column(
           children: [
             Icon(icon, color: color, size: 20),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11, color: color.withValues(alpha: 0.8))),
+            Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+            Text(label, style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8))),
           ],
         ),
       ),
@@ -349,8 +315,7 @@ class _ScanPageState extends State<ScanPage> {
 
   Widget _buildResultCard() {
     final result = _scanResult!;
-    final baseColor =
-        result.isValid ? const Color(0xFF10B981) : const Color(0xFFEF4444);
+    final baseColor = result.isValid ? const Color(0xFF10B981) : const Color(0xFFEF4444);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -363,20 +328,14 @@ class _ScanPageState extends State<ScanPage> {
         children: [
           Row(
             children: [
-              Icon(result.isValid ? Icons.check_circle : Icons.error,
-                  color: baseColor, size: 30),
+              Icon(result.isValid ? Icons.check_circle : Icons.error, color: baseColor, size: 30),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(result.isValid ? 'BERHASIL' : 'GAGAL',
-                        style: TextStyle(
-                            color: baseColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18)),
-                    Text(result.message,
-                        style: const TextStyle(color: Colors.white70)),
+                    Text(result.isValid ? 'BERHASIL' : 'GAGAL', style: TextStyle(color: baseColor, fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text(result.message, style: const TextStyle(color: Colors.white70)),
                   ],
                 ),
               ),
@@ -403,11 +362,8 @@ class _ScanPageState extends State<ScanPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(color: Colors.white38, fontSize: 13)),
-          Text(value,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w600)),
+          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 13)),
+          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
         ],
       ),
     );
