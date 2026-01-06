@@ -24,9 +24,11 @@ class StatisticsPage extends StatelessWidget {
   double get scanRate =>
       totalTicketsSold > 0 ? (totalScanned / totalTicketsSold * 100) : 0;
 
+  // Mengambil 10 aktivitas check-in terbaru
   List<Ticket> get recentScans {
     final scannedTickets =
         tickets.where((t) => t.isScanned && t.scannedAt != null).toList();
+    // Urutkan berdasarkan waktu scan (paling baru di atas)
     scannedTickets.sort((a, b) => b.scannedAt!.compareTo(a.scannedAt!));
     return scannedTickets.take(10).toList();
   }
@@ -44,7 +46,7 @@ class StatisticsPage extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // Header dengan standar withValues
+            // Header
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -71,12 +73,12 @@ class StatisticsPage extends StatelessWidget {
               ),
             ),
 
-            // Content
+            // Main Content
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(24),
                 children: [
-                  // Summary Cards Grid
+                  // Grid Summary Cards
                   GridView.count(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -89,33 +91,25 @@ class StatisticsPage extends StatelessWidget {
                         'Tiket Terjual',
                         totalTicketsSold.toString(),
                         Icons.confirmation_number,
-                        const LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                        ),
+                        const LinearGradient(colors: [Color(0xFF3B82F6), Color(0xFF2563EB)]),
                       ),
                       _buildStatCard(
                         'Total Omzet',
                         _formatShortCurrency(totalRevenue),
                         Icons.payments,
-                        const LinearGradient(
-                          colors: [Color(0xFF10B981), Color(0xFF059669)],
-                        ),
+                        const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
                       ),
                       _buildStatCard(
                         'Check-in',
                         totalScanned.toString(),
                         Icons.how_to_reg,
-                        const LinearGradient(
-                          colors: [Color(0xFF9333EA), Color(0xFF7C3AED)],
-                        ),
+                        const LinearGradient(colors: [Color(0xFF9333EA), Color(0xFF7C3AED)]),
                       ),
                       _buildStatCard(
                         'Kehadiran',
                         '${scanRate.toStringAsFixed(1)}%',
                         Icons.analytics,
-                        const LinearGradient(
-                          colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
-                        ),
+                        const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFEF4444)]),
                       ),
                     ],
                   ),
@@ -130,11 +124,11 @@ class StatisticsPage extends StatelessWidget {
                     ...events.map((event) => _buildEventCard(event)),
 
                   const SizedBox(height: 32),
-                  _buildSectionHeader('Check-in Terbaru'),
+                  _buildSectionHeader('Aktivitas Check-in Terbaru'),
                   const SizedBox(height: 16),
-                  _buildRecentScansCard(),
-
-                  const SizedBox(height: 24),
+                  _buildRecentScansList(),
+                  
+                  const SizedBox(height: 40), // Spasi bawah agar tidak mentok navbar
                 ],
               ),
             ),
@@ -144,58 +138,9 @@ class StatisticsPage extends StatelessWidget {
     );
   }
 
-  String _formatShortCurrency(double value) {
-    if (value >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}Jt';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}Rb';
-    }
-    return value.toStringAsFixed(0);
-  }
+  // --- WIDGET BUILDERS ---
 
-  Widget _buildSectionHeader(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Colors.white,
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String message, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
-      child: Center(
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              size: 64,
-              color: Colors.white.withValues(alpha: 0.3),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(
-      String label, String value, IconData icon, Gradient gradient) {
+  Widget _buildStatCard(String label, String value, IconData icon, Gradient gradient) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -217,20 +162,13 @@ class StatisticsPage extends StatelessWidget {
           FittedBox(
             child: Text(
               value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 12),
             textAlign: TextAlign.center,
           ),
         ],
@@ -241,8 +179,7 @@ class StatisticsPage extends StatelessWidget {
   Widget _buildEventCard(Event event) {
     final eventTickets = tickets.where((t) => t.eventId == event.id).toList();
     final eventScans = eventTickets.where((t) => t.isScanned).length;
-    final salePercentage =
-        event.capacity > 0 ? (event.ticketsSold / event.capacity) : 0.0;
+    final salePercentage = event.capacity > 0 ? (event.ticketsSold / event.capacity) : 0.0;
     final revenue = event.ticketsSold * event.price;
 
     return Container(
@@ -258,56 +195,25 @@ class StatisticsPage extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.event, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      event.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
-                    ),
+                    Text(event.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
                     const SizedBox(height: 4),
-                    Text(
-                      DateFormat('dd MMM yyyy').format(event.date),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text(DateFormat('dd MMM yyyy').format(event.date),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13)),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
-                  ),
-                  borderRadius: BorderRadius.circular(20),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  '${(salePercentage * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
+                child: Text('${(salePercentage * 100).toStringAsFixed(0)}% Sold',
+                    style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12)),
               ),
             ],
           ),
@@ -316,35 +222,17 @@ class StatisticsPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: salePercentage,
-              backgroundColor: Colors.white.withValues(alpha: 0.2),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
               minHeight: 8,
             ),
           ),
           const SizedBox(height: 16),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: _buildEventStat(
-                  Icons.confirmation_number,
-                  'Terjual',
-                  '${event.ticketsSold}/${event.capacity}',
-                ),
-              ),
-              Expanded(
-                child: _buildEventStat(
-                  Icons.how_to_reg,
-                  'Check-in',
-                  '$eventScans',
-                ),
-              ),
-              Expanded(
-                child: _buildEventStat(
-                  Icons.payments,
-                  'Pendapatan',
-                  _formatShortCurrency(revenue),
-                ),
-              ),
+              _buildSmallStat(Icons.people, '$eventScans Scanned'),
+              _buildSmallStat(Icons.payments, _formatShortCurrency(revenue.toDouble())),
             ],
           ),
         ],
@@ -352,34 +240,9 @@ class StatisticsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildEventStat(IconData icon, String label, String value) {
-    return Column(
-      children: [
-        Icon(icon, color: const Color(0xFFC4B5FD), size: 20),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.6),
-            fontSize: 11,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
-            color: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecentScansCard() {
+  Widget _buildRecentScansList() {
     if (recentScans.isEmpty) {
-      return _buildEmptyState('Belum ada aktivitas check-in', Icons.qr_code_scanner);
+      return _buildEmptyState('Belum ada check-in hari ini', Icons.history);
     }
 
     return Container(
@@ -388,102 +251,57 @@ class StatisticsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: recentScans.length,
-        separatorBuilder: (_, __) => Divider(
-          height: 1,
-          color: Colors.white.withValues(alpha: 0.1),
-        ),
-        itemBuilder: (context, index) {
-          final scan = recentScans[index];
-          final event = events.firstWhere(
-            (e) => e.id == scan.eventId,
-            orElse: () => Event(
-              id: -1,
-              name: 'Unknown Event',
-              date: DateTime.now(),
-              location: '',
-              capacity: 0,
-              price: 0,
-              description: '',
+      child: Column(
+        children: recentScans.map((scan) {
+          final event = events.firstWhere((e) => e.id == scan.eventId, 
+            orElse: () => Event(id: 0, name: 'Unknown', date: DateTime.now(), location: '', capacity: 0, price: 0, description: ''));
+          
+          return ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: Color(0xFF10B981),
+              child: Icon(Icons.check, color: Colors.white, size: 20),
             ),
+            title: Text(scan.buyerName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            subtitle: Text(event.name, style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
+            trailing: Text(DateFormat('HH:mm').format(scan.scannedAt!),
+                style: const TextStyle(color: Color(0xFFC4B5FD), fontWeight: FontWeight.bold)),
           );
-
-          return Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        scan.buyerName,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        event.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.6),
-                        ),
-                      ),
-                      Text(
-                        scan.code,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.white.withValues(alpha: 0.4),
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      DateFormat('HH:mm').format(scan.scannedAt!),
-                      style: const TextStyle(
-                        color: Color(0xFFC4B5FD),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      DateFormat('dd MMM').format(scan.scannedAt!),
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
+        }).toList(),
       ),
     );
+  }
+
+  // --- HELPERS ---
+
+  Widget _buildSectionHeader(String title) {
+    return Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white));
+  }
+
+  Widget _buildSmallStat(IconData icon, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white.withValues(alpha: 0.5), size: 16),
+        const SizedBox(width: 6),
+        Text(value, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Center(
+      child: Column(
+        children: [
+          Icon(icon, size: 48, color: Colors.white.withValues(alpha: 0.2)),
+          const SizedBox(height: 12),
+          Text(message, style: TextStyle(color: Colors.white.withValues(alpha: 0.4))),
+        ],
+      ),
+    );
+  }
+
+  String _formatShortCurrency(double value) {
+    if (value >= 1000000) return 'Rp ${(value / 1000000).toStringAsFixed(1)}Jt';
+    if (value >= 1000) return 'Rp ${(value / 1000).toStringAsFixed(0)}Rb';
+    return 'Rp ${value.toStringAsFixed(0)}';
   }
 }
