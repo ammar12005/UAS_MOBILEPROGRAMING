@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'models.dart';
 import 'storage_service.dart';
 import 'pages/login_page.dart';
@@ -6,6 +8,9 @@ import 'pages/dashboard_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Hive
+  await _initializeHive();
   
   // Buat akun default jika belum ada
   await _createDefaultAccount();
@@ -16,10 +21,31 @@ void main() async {
   runApp(MyApp(initialUser: user));
 }
 
+// Fungsi untuk initialize Hive
+Future<void> _initializeHive() async {
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox('eventManagerStorage');
+    
+    if (kDebugMode) {
+      debugPrint('✅ Hive initialized successfully');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('❌ Error initializing Hive: $e');
+    }
+  }
+}
+
 // Fungsi untuk membuat akun default
 Future<void> _createDefaultAccount() async {
   try {
     final users = await StorageService.getUsers();
+    
+    if (kDebugMode) {
+      debugPrint('📊 Checking existing users...');
+      debugPrint('   Total users in storage: ${users.length}');
+    }
     
     // Jika belum ada user, buat akun default
     if (users.isEmpty) {
@@ -45,21 +71,25 @@ Future<void> _createDefaultAccount() async {
       ];
       
       await StorageService.saveUsers(defaultUsers);
-      // Debug mode only - akan otomatis hilang di production build
-      assert(() {
+      
+      if (kDebugMode) {
         debugPrint('✅ Akun default berhasil dibuat:');
         debugPrint('   1. Email: admin@gmail.com  | Password: 123456');
         debugPrint('   2. Email: user@gmail.com   | Password: user123');
         debugPrint('   3. Email: ammar@gmail.com  | Password: ammar123');
-        return true;
-      }());
+      }
+    } else {
+      if (kDebugMode) {
+        debugPrint('ℹ️  Akun sudah ada di storage:');
+        for (var user in users) {
+          debugPrint('   - ${user.email} (${user.name})');
+        }
+      }
     }
   } catch (e) {
-    // Debug mode only
-    assert(() {
-      debugPrint('⚠️ Error membuat akun default: $e');
-      return true;
-    }());
+    if (kDebugMode) {
+      debugPrint('❌ Error membuat akun default: $e');
+    }
   }
 }
 
@@ -70,6 +100,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Debug info saat app start
+    if (kDebugMode) {
+      debugPrint('🚀 App Starting...');
+      debugPrint('   Auto-login: ${initialUser != null}');
+      if (initialUser != null) {
+        debugPrint('   Logged in as: ${initialUser!.email}');
+      }
+    }
+    
     return MaterialApp(
       title: 'Event Manager Pro',
       debugShowCheckedModeBanner: false,

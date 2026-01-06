@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // Tambahkan import ini
 import '../models.dart';
 import '../storage_service.dart';
 import 'dashboard_page.dart';
@@ -39,11 +40,29 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final users = await StorageService.getUsers();
       final email = _emailController.text.trim().toLowerCase();
+      final password = _passwordController.text.trim();
+      
+      // Debug: Print untuk melihat data (hanya di debug mode)
+      if (kDebugMode) {
+        debugPrint('=== DEBUG LOGIN ===');
+        debugPrint('Email input: $email');
+        debugPrint('Password input: $password');
+        debugPrint('Total users: ${users.length}');
+        
+        for (var u in users) {
+          debugPrint('User: ${u.email} | Password: ${u.password}');
+        }
+      }
       
       final user = users.cast<User?>().firstWhere(
-        (u) => u?.email.toLowerCase() == email && u?.password == _passwordController.text,
+        (u) => u?.email.toLowerCase() == email && u?.password == password,
         orElse: () => null,
       );
+      
+      if (kDebugMode) {
+        debugPrint('User found: ${user != null}');
+        debugPrint('===================');
+      }
       
       if (!mounted) return;
       
@@ -60,6 +79,9 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       if (!mounted) return;
+      if (kDebugMode) {
+        debugPrint('Error login: $e');
+      }
       setState(() => _errorMessage = "Terjadi kesalahan: ${e.toString()}");
     } finally {
       if (mounted) {
