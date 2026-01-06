@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
-import '../main.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../models.dart';
 import 'edit_event_page.dart';
 
 class EventDetailPage extends StatefulWidget {
@@ -9,7 +9,7 @@ class EventDetailPage extends StatefulWidget {
   final List<Ticket> tickets;
   final Function(List<Ticket>) onTicketsChanged;
   final Function(Event) onEventChanged;
-  final Function(Event)? onEventDeleted; // TAMBAHKAN INI
+  final Function(Event)? onEventDeleted;
 
   const EventDetailPage({
     super.key,
@@ -17,7 +17,7 @@ class EventDetailPage extends StatefulWidget {
     required this.tickets,
     required this.onTicketsChanged,
     required this.onEventChanged,
-    this.onEventDeleted, // TAMBAHKAN INI
+    this.onEventDeleted,
   });
 
   @override
@@ -28,6 +28,13 @@ class _EventDetailPageState extends State<EventDetailPage> {
   final _buyerNameController = TextEditingController();
   final _buyerEmailController = TextEditingController();
   Ticket? _generatedTicket;
+  late Event _currentEvent;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentEvent = widget.event;
+  }
 
   @override
   void dispose() {
@@ -37,7 +44,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   List<Ticket> get eventTickets =>
-      widget.tickets.where((t) => t.eventId == widget.event.id).toList();
+      widget.tickets.where((t) => t.eventId == _currentEvent.id).toList();
 
   String _generateTicketCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -46,7 +53,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
   }
 
   void _generateTicket() {
-    if (_buyerNameController.text.isEmpty || _buyerEmailController.text.isEmpty) {
+    if (_buyerNameController.text.trim().isEmpty || 
+        _buyerEmailController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
@@ -64,7 +72,27 @@ class _EventDetailPageState extends State<EventDetailPage> {
       return;
     }
 
-    if (widget.event.ticketsSold >= widget.event.capacity) {
+    // Validasi format email
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(_buyerEmailController.text.trim())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Text('Format email tidak valid'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
+    if (_currentEvent.ticketsSold >= _currentEvent.capacity) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Row(
@@ -85,10 +113,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
     final ticketCode = _generateTicketCode();
     final newTicket = Ticket(
       id: DateTime.now().millisecondsSinceEpoch,
-      eventId: widget.event.id,
+      eventId: _currentEvent.id,
       code: ticketCode,
-      buyerName: _buyerNameController.text,
-      buyerEmail: _buyerEmailController.text,
+      buyerName: _buyerNameController.text.trim(),
+      buyerEmail: _buyerEmailController.text.trim(),
       purchaseDate: DateTime.now(),
     );
 
@@ -98,15 +126,17 @@ class _EventDetailPageState extends State<EventDetailPage> {
     widget.onTicketsChanged(updatedTickets);
 
     final updatedEvent = Event(
-      id: widget.event.id,
-      name: widget.event.name,
-      date: widget.event.date,
-      location: widget.event.location,
-      capacity: widget.event.capacity,
-      price: widget.event.price,
-      description: widget.event.description,
-      ticketsSold: widget.event.ticketsSold + 1,
+      id: _currentEvent.id,
+      name: _currentEvent.name,
+      date: _currentEvent.date,
+      location: _currentEvent.location,
+      capacity: _currentEvent.capacity,
+      price: _currentEvent.price,
+      description: _currentEvent.description,
+      ticketsSold: _currentEvent.ticketsSold + 1,
     );
+    
+    setState(() => _currentEvent = updatedEvent);
     widget.onEventChanged(updatedEvent);
   }
 
@@ -123,15 +153,17 @@ class _EventDetailPageState extends State<EventDetailPage> {
     widget.onTicketsChanged(updatedTickets);
 
     final updatedEvent = Event(
-      id: widget.event.id,
-      name: widget.event.name,
-      date: widget.event.date,
-      location: widget.event.location,
-      capacity: widget.event.capacity,
-      price: widget.event.price,
-      description: widget.event.description,
-      ticketsSold: widget.event.ticketsSold - 1,
+      id: _currentEvent.id,
+      name: _currentEvent.name,
+      date: _currentEvent.date,
+      location: _currentEvent.location,
+      capacity: _currentEvent.capacity,
+      price: _currentEvent.price,
+      description: _currentEvent.description,
+      ticketsSold: _currentEvent.ticketsSold - 1,
     );
+    
+    setState(() => _currentEvent = updatedEvent);
     widget.onEventChanged(updatedEvent);
   }
 
@@ -172,7 +204,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            widget.event.name,
+                            _currentEvent.name,
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
@@ -183,7 +215,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            '${widget.event.ticketsSold}/${widget.event.capacity} tiket terjual',
+                            '${_currentEvent.ticketsSold}/${_currentEvent.capacity} tiket terjual',
                             style: const TextStyle(
                               fontSize: 14,
                               color: Color(0xFFC4B5FD),
@@ -194,16 +226,24 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit, color: Colors.white),
-                      onPressed: () {
-                        Navigator.push(
+                      onPressed: () async {
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => EditEventPage(
-                              event: widget.event,
-                              onEventUpdated: widget.onEventChanged,
+                              event: _currentEvent,
+                              onEventUpdated: (updatedEvent) {
+                                setState(() => _currentEvent = updatedEvent);
+                                widget.onEventChanged(updatedEvent);
+                              },
                             ),
                           ),
                         );
+                        
+                        // Refresh jika ada perubahan
+                        if (result != null && result is Event) {
+                          setState(() => _currentEvent = result);
+                        }
                       },
                     ),
                     PopupMenuButton<String>(
@@ -275,14 +315,14 @@ class _EventDetailPageState extends State<EventDetailPage> {
             ),
           ),
           const SizedBox(height: 16),
-          _buildInfoRow(Icons.calendar_today, DateFormat('dd MMM yyyy • HH:mm').format(widget.event.date)),
+          _buildInfoRow(Icons.calendar_today, DateFormat('dd MMM yyyy • HH:mm').format(_currentEvent.date)),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.location_on, widget.event.location),
+          _buildInfoRow(Icons.location_on, _currentEvent.location),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.people, '${widget.event.capacity} orang'),
+          _buildInfoRow(Icons.people, '${_currentEvent.capacity} orang'),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.payments, 'Rp ${NumberFormat('#,###').format(widget.event.price)}'),
-          if (widget.event.description.isNotEmpty) ...[
+          _buildInfoRow(Icons.payments, 'Rp ${NumberFormat('#,###').format(_currentEvent.price)}'),
+          if (_currentEvent.description.isNotEmpty) ...[
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -291,7 +331,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                widget.event.description,
+                _currentEvent.description,
                 style: const TextStyle(color: Color(0xFFC4B5FD), fontSize: 14),
               ),
             ),
@@ -473,9 +513,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 const SizedBox(height: 8),
                 _buildTicketInfo('Email', _generatedTicket!.buyerEmail),
                 const SizedBox(height: 8),
-                _buildTicketInfo('Tanggal', DateFormat('dd MMM yyyy').format(widget.event.date)),
+                _buildTicketInfo('Tanggal', DateFormat('dd MMM yyyy').format(_currentEvent.date)),
                 const SizedBox(height: 8),
-                _buildTicketInfo('Lokasi', widget.event.location),
+                _buildTicketInfo('Lokasi', _currentEvent.location),
               ],
             ),
           ),
@@ -782,8 +822,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Event dan semua tiket akan dihapus!'),
+            Text('Yakin ingin menghapus event "${_currentEvent.name}"?'),
             const SizedBox(height: 12),
+            const Text('Event dan semua tiket akan dihapus permanen!'),
+            const SizedBox(height: 8),
             Text(
               '${eventTickets.length} tiket akan terhapus',
               style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
@@ -797,15 +839,15 @@ class _EventDetailPageState extends State<EventDetailPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              // Hapus tiket terkait event
+              // Hapus semua tiket terkait event
               final updatedTickets = widget.tickets
-                  .where((t) => t.eventId != widget.event.id)
+                  .where((t) => t.eventId != _currentEvent.id)
                   .toList();
               widget.onTicketsChanged(updatedTickets);
               
-              // PERBAIKAN: Panggil callback untuk hapus event
+              // Panggil callback untuk hapus event dari parent
               if (widget.onEventDeleted != null) {
-                widget.onEventDeleted!(widget.event);
+                widget.onEventDeleted!(_currentEvent);
               }
               
               Navigator.pop(context); // Tutup dialog
@@ -813,14 +855,17 @@ class _EventDetailPageState extends State<EventDetailPage> {
               
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Event "${widget.event.name}" dihapus'),
+                  content: Text('Event "${_currentEvent.name}" berhasil dihapus'),
                   backgroundColor: Colors.red,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Hapus'),
           ),
         ],

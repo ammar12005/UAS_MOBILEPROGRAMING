@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../main.dart';
+import '../models.dart';
+import '../storage_service.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -37,6 +38,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
+    // Validasi format email
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(emailInput)) {
+      setState(() => _errorMessage = 'Format email tidak valid');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -52,21 +60,28 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         orElse: () => null,
       );
 
-      if (user != null) {
-        setState(() {
-          _foundUser = user;
-          _emailVerified = true;
-          _successMessage = 'Akun ditemukan: ${user.name}';
-        });
-      } else {
-        setState(() {
-          _errorMessage = 'Email tidak terdaftar dalam sistem';
-        });
+      if (mounted) {
+        if (user != null) {
+          setState(() {
+            _foundUser = user;
+            _emailVerified = true;
+            _successMessage = 'Akun ditemukan: ${user.name}';
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _errorMessage = 'Email tidak terdaftar dalam sistem';
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Terjadi kesalahan saat memuat data');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Terjadi kesalahan saat memuat data';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -74,7 +89,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      setState(() => _errorMessage = 'Password tidak cocok!');
+      setState(() => _errorMessage = 'Password dan konfirmasi tidak cocok!');
+      return;
+    }
+
+    if (_newPasswordController.text.length < 6) {
+      setState(() => _errorMessage = 'Password minimal 6 karakter');
       return;
     }
 
@@ -92,10 +112,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           id: _foundUser!.id,
           name: _foundUser!.name,
           email: _foundUser!.email,
-          password: _newPasswordController.text,
+          password: _newPasswordController.text.trim(),
         );
         
         await StorageService.saveUsers(users);
+        await Future.delayed(const Duration(milliseconds: 500));
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -104,7 +125,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 children: [
                   Icon(Icons.check_circle, color: Colors.white),
                   SizedBox(width: 12),
-                  Text('Password berhasil diperbarui! Silakan login.'),
+                  Expanded(
+                    child: Text('Password berhasil diperbarui! Silakan login.'),
+                  ),
                 ],
               ),
               backgroundColor: Colors.green,
@@ -112,15 +135,29 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+              duration: const Duration(seconds: 3),
             ),
           );
-          Navigator.pop(context);
+          
+          // Tunggu sebentar sebelum kembali
+          await Future.delayed(const Duration(milliseconds: 300));
+          if (mounted) {
+            Navigator.pop(context);
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() => _errorMessage = 'Data user tidak ditemukan');
         }
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Gagal mereset password');
+      if (mounted) {
+        setState(() => _errorMessage = 'Gagal mereset password: ${e.toString()}');
+      }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -192,7 +229,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         borderRadius: BorderRadius.circular(24),
                       ),
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 400),
+                        constraints: const BoxConstraints(maxWidth: 450),
                         padding: const EdgeInsets.all(32),
                         child: Form(
                           key: _formKey,
@@ -207,6 +244,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
                                   ),
                                   shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF9333EA).withOpacity(0.3),
+                                      blurRadius: 15,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
                                 ),
                                 child: const Icon(
                                   Icons.lock_reset,
@@ -227,8 +271,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               const SizedBox(height: 8),
                               Text(
                                 _emailVerified
-                                    ? 'Masukkan password baru untuk ${_foundUser?.email}'
-                                    : 'Masukkan email terdaftar untuk mencari akun Anda',
+                                    ? 'Masukkan password baru untuk akun Anda'
+                                    : 'Masukkan email terdaftar untuk mencari akun',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 14,
@@ -237,7 +281,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                               ),
                               const SizedBox(height: 32),
 
-                              // Error/Success Message
+                              // Error Message
                               if (_errorMessage != null)
                                 Container(
                                   width: double.infinity,
@@ -250,7 +294,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.error_outline, color: Colors.red),
+                                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
@@ -258,6 +302,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                           style: const TextStyle(
                                             color: Colors.red,
                                             fontWeight: FontWeight.w500,
+                                            fontSize: 13,
                                           ),
                                         ),
                                       ),
@@ -265,6 +310,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   ),
                                 ),
 
+                              // Success Message
                               if (_successMessage != null)
                                 Container(
                                   width: double.infinity,
@@ -277,15 +323,32 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.check_circle, color: Colors.green),
+                                      const Icon(Icons.check_circle, color: Colors.green, size: 20),
                                       const SizedBox(width: 12),
                                       Expanded(
-                                        child: Text(
-                                          _successMessage!,
-                                          style: const TextStyle(
-                                            color: Colors.green,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              _successMessage!,
+                                              style: const TextStyle(
+                                                color: Colors.green,
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            if (_foundUser != null) ...[
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _foundUser!.email,
+                                                style: TextStyle(
+                                                  color: Colors.green[700],
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -306,11 +369,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.grey[50],
+                                  fillColor: _emailVerified 
+                                      ? Colors.grey[200] 
+                                      : Colors.grey[50],
                                 ),
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
-                                  if (v?.isEmpty ?? true) return 'Email harus diisi';
+                                  if (v?.trim().isEmpty ?? true) return 'Email harus diisi';
                                   if (!v!.contains('@')) return 'Email tidak valid';
                                   return null;
                                 },
@@ -331,6 +396,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       elevation: 4,
+                                      disabledBackgroundColor: Colors.grey[300],
                                     ),
                                     child: _isLoading
                                         ? const SizedBox(
@@ -347,7 +413,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                               Icon(Icons.search),
                                               SizedBox(width: 12),
                                               Text(
-                                                'Cek Email',
+                                                'Cari Akun',
                                                 style: TextStyle(
                                                   fontSize: 16,
                                                   fontWeight: FontWeight.bold,
@@ -365,6 +431,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 TextFormField(
                                   controller: _newPasswordController,
                                   obscureText: _obscureNewPassword,
+                                  enabled: !_isLoading,
                                   decoration: InputDecoration(
                                     labelText: 'Password Baru',
                                     prefixIcon: const Icon(Icons.lock),
@@ -385,8 +452,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     fillColor: Colors.grey[50],
                                   ),
                                   validator: (v) {
-                                    if (v?.isEmpty ?? true) return 'Password harus diisi';
-                                    if (v!.length < 6) return 'Minimal 6 karakter';
+                                    if (v?.trim().isEmpty ?? true) {
+                                      return 'Password harus diisi';
+                                    }
+                                    if (v!.length < 6) {
+                                      return 'Password minimal 6 karakter';
+                                    }
                                     return null;
                                   },
                                 ),
@@ -394,6 +465,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                 TextFormField(
                                   controller: _confirmPasswordController,
                                   obscureText: _obscureConfirmPassword,
+                                  enabled: !_isLoading,
                                   decoration: InputDecoration(
                                     labelText: 'Konfirmasi Password',
                                     prefixIcon: const Icon(Icons.lock_outline),
@@ -414,8 +486,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     fillColor: Colors.grey[50],
                                   ),
                                   validator: (v) {
-                                    if (v?.isEmpty ?? true) {
+                                    if (v?.trim().isEmpty ?? true) {
                                       return 'Konfirmasi password harus diisi';
+                                    }
+                                    if (v != _newPasswordController.text) {
+                                      return 'Password tidak cocok';
                                     }
                                     return null;
                                   },
@@ -433,6 +508,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(12),
                                           ),
+                                          side: BorderSide(
+                                            color: _isLoading 
+                                                ? Colors.grey 
+                                                : const Color(0xFF9333EA),
+                                          ),
                                         ),
                                         child: const Text('Batal'),
                                       ),
@@ -448,6 +528,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(12),
                                           ),
+                                          elevation: 4,
+                                          disabledBackgroundColor: Colors.grey[300],
                                         ),
                                         child: _isLoading
                                             ? const SizedBox(
@@ -473,9 +555,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
                               // Back to Login
                               const SizedBox(height: 24),
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('Kembali ke Login'),
+                              TextButton.icon(
+                                onPressed: _isLoading 
+                                    ? null 
+                                    : () => Navigator.pop(context),
+                                icon: const Icon(Icons.arrow_back),
+                                label: const Text('Kembali ke Login'),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFF9333EA),
+                                ),
                               ),
                             ],
                           ),

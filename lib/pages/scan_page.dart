@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:intl/intl.dart';
-import '../main.dart';
+import '../models.dart';
 
 class ScanPage extends StatefulWidget {
   final List<Ticket> tickets;

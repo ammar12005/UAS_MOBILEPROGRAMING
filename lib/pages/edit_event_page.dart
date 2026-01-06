@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../main.dart';
+import '../models.dart';
 
 class EditEventPage extends StatefulWidget {
   final Event event;
@@ -48,7 +48,6 @@ class _EditEventPageState extends State<EditEventPage> {
     super.dispose();
   }
 
-  // Check if there are unsaved changes
   bool _hasChanges() {
     return _nameController.text != widget.event.name ||
            _locationController.text != widget.event.location ||
@@ -58,7 +57,6 @@ class _EditEventPageState extends State<EditEventPage> {
            _selectedDate != widget.event.date;
   }
 
-  // Show confirmation dialog before leaving
   Future<bool> _onWillPop() async {
     if (!_hasChanges()) return true;
     
@@ -91,7 +89,7 @@ class _EditEventPageState extends State<EditEventPage> {
       initialDate: _selectedDate.isAfter(DateTime.now()) 
           ? _selectedDate 
           : DateTime.now(),
-      firstDate: DateTime.now(), // Changed: prevent past dates
+      firstDate: DateTime.now(),
       lastDate: DateTime(2100),
       builder: (context, child) {
         return Theme(
@@ -146,7 +144,6 @@ class _EditEventPageState extends State<EditEventPage> {
 
     setState(() => _isSaving = true);
 
-    // Simulate network delay (remove in production if not needed)
     await Future.delayed(const Duration(milliseconds: 300));
 
     final updatedEvent = Event(
@@ -209,7 +206,6 @@ class _EditEventPageState extends State<EditEventPage> {
           child: SafeArea(
             child: Column(
               children: [
-                // Header
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -258,15 +254,12 @@ class _EditEventPageState extends State<EditEventPage> {
                     ],
                   ),
                 ),
-
-                // Form
                 Expanded(
                   child: Form(
                     key: _formKey,
                     child: ListView(
                       padding: const EdgeInsets.all(24),
                       children: [
-                        // Warning jika ada tiket terjual
                         if (widget.event.ticketsSold > 0)
                           Container(
                             margin: const EdgeInsets.only(bottom: 20),
@@ -306,8 +299,6 @@ class _EditEventPageState extends State<EditEventPage> {
                               ],
                             ),
                           ),
-
-                        // Nama Event
                         _buildLabel('Nama Event'),
                         const SizedBox(height: 8),
                         _buildTextField(
@@ -317,8 +308,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           validator: (v) => v?.isEmpty ?? true ? 'Nama event harus diisi' : null,
                         ),
                         const SizedBox(height: 20),
-
-                        // Lokasi
                         _buildLabel('Lokasi'),
                         const SizedBox(height: 8),
                         _buildTextField(
@@ -328,8 +317,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           validator: (v) => v?.isEmpty ?? true ? 'Lokasi harus diisi' : null,
                         ),
                         const SizedBox(height: 20),
-
-                        // Tanggal & Waktu
                         _buildLabel('Tanggal & Waktu'),
                         const SizedBox(height: 8),
                         InkWell(
@@ -380,8 +367,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           ),
                         ),
                         const SizedBox(height: 20),
-
-                        // Kapasitas & Harga
                         Row(
                           children: [
                             Expanded(
@@ -435,8 +420,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           ],
                         ),
                         const SizedBox(height: 20),
-
-                        // Deskripsi
                         _buildLabel('Deskripsi'),
                         const SizedBox(height: 8),
                         Container(
@@ -463,8 +446,6 @@ class _EditEventPageState extends State<EditEventPage> {
                           ),
                         ),
                         const SizedBox(height: 32),
-
-                        // Button Simpan
                         Container(
                           height: 56,
                           decoration: BoxDecoration(

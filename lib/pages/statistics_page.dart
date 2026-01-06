@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../main.dart';
+import '../models.dart';
 
 class StatisticsPage extends StatelessWidget {
   final List<Event> events;

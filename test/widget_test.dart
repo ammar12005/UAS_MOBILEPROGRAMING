@@ -1,7 +1,9 @@
-// test/widget_test.dart
+// FILE: test/widget_test.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:aplikasi_manajemen_event_dan_tiket_digital/main.dart';
+import 'package:aplikasi_manajemen_event_dan_tiket_digital/models.dart';
+import 'package:aplikasi_manajemen_event_dan_tiket_digital/pages/login_page.dart';
 
 void main() {
   testWidgets('App initialization test', (WidgetTester tester) async {
@@ -9,14 +11,14 @@ void main() {
     await tester.pumpWidget(const MyApp());
     
     // Tunggu hingga loading selesai
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(seconds: 2));
 
-    // Verify bahwa login page muncul atau dashboard muncul
+    // Verify bahwa ada CircularProgressIndicator atau text Event Manager Pro
     final hasProgress = find.byType(CircularProgressIndicator).evaluate().isNotEmpty;
-    final hasLoginText = find.text('Event Manager Pro').evaluate().isNotEmpty;
+    final hasEventText = find.text('Event Manager Pro').evaluate().isNotEmpty;
     
     expect(
-      hasProgress || hasLoginText,
+      hasProgress || hasEventText,
       isTrue,
       reason: 'Should show either CircularProgressIndicator or Event Manager Pro text',
     );
@@ -26,53 +28,39 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: LoginPage()));
     
     // Verify elemen-elemen login page
-    expect(find.text('Event Manager Pro'), findsOneWidget);
-    expect(find.text('Login'), findsAtLeastNWidgets(1));
-    expect(find.text('Register'), findsOneWidget);
-    expect(find.byType(TextField), findsWidgets);
+    expect(find.text('Selamat Datang!'), findsOneWidget);
+    expect(find.text('Login ke Event Manager Pro'), findsOneWidget);
+    expect(find.text('Belum punya akun?'), findsOneWidget);
+    expect(find.text('Daftar'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNWidgets(2)); // Email dan Password
   });
 
   testWidgets('Login form validation', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginPage()));
     
     // Tap login button tanpa isi form
-    final loginButton = find.widgetWithText(ElevatedButton, 'Login').first;
+    final loginButton = find.widgetWithText(ElevatedButton, 'Login');
     await tester.tap(loginButton);
     await tester.pump();
     
     // Verify validasi muncul
-    expect(find.text('Email tidak boleh kosong'), findsOneWidget);
-  });
-
-  testWidgets('Toggle between Login and Register', (WidgetTester tester) async {
-    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
-    
-    // Tap register button
-    final registerTab = find.widgetWithText(ElevatedButton, 'Register').first;
-    await tester.tap(registerTab);
-    await tester.pump();
-    
-    // Verify field nama muncul (hanya ada di register)
-    expect(find.text('Nama Lengkap'), findsOneWidget);
-    expect(find.text('Konfirmasi Password'), findsOneWidget);
+    expect(find.text('Email harus diisi'), findsOneWidget);
+    expect(find.text('Password harus diisi'), findsOneWidget);
   });
 
   testWidgets('Password visibility toggle', (WidgetTester tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginPage()));
     
-    // Find password field
-    final passwordFields = find.byType(TextField);
-    expect(passwordFields, findsWidgets);
+    // Find visibility icon (default hidden)
+    final visibilityIcon = find.byIcon(Icons.visibility);
+    expect(visibilityIcon, findsOneWidget);
     
-    // Find visibility icon
-    final visibilityIcon = find.byIcon(Icons.visibility_off);
-    if (visibilityIcon.evaluate().isNotEmpty) {
-      await tester.tap(visibilityIcon.first);
-      await tester.pump();
-      
-      // Verify icon changed
-      expect(find.byIcon(Icons.visibility), findsWidgets);
-    }
+    // Tap to show password
+    await tester.tap(visibilityIcon);
+    await tester.pump();
+    
+    // Verify icon changed to visibility_off
+    expect(find.byIcon(Icons.visibility_off), findsOneWidget);
   });
 
   group('Event Model Tests', () {
@@ -92,10 +80,26 @@ void main() {
       expect(json['name'], 'Test Event');
       expect(json['capacity'], 100);
       expect(json['ticketsSold'], 10);
+      expect(json['price'], 50000);
 
       final eventFromJson = Event.fromJson(json);
       expect(eventFromJson.name, event.name);
       expect(eventFromJson.capacity, event.capacity);
+      expect(eventFromJson.ticketsSold, event.ticketsSold);
+    });
+
+    test('Event model with default ticketsSold', () {
+      final event = Event(
+        id: 1,
+        name: 'Test Event',
+        date: DateTime(2025, 1, 1),
+        location: 'Test Location',
+        capacity: 100,
+        price: 50000,
+        description: 'Test Description',
+      );
+
+      expect(event.ticketsSold, 0); // Default value
     });
   });
 
@@ -115,10 +119,34 @@ void main() {
       expect(json['code'], 'TKT-ABC123');
       expect(json['buyerName'], 'John Doe');
       expect(json['isScanned'], false);
+      expect(json['scannedAt'], null);
 
       final ticketFromJson = Ticket.fromJson(json);
       expect(ticketFromJson.code, ticket.code);
       expect(ticketFromJson.isScanned, ticket.isScanned);
+      expect(ticketFromJson.scannedAt, null);
+    });
+
+    test('Ticket model with scanned status', () {
+      final scannedAt = DateTime(2025, 1, 2);
+      final ticket = Ticket(
+        id: 1,
+        eventId: 1,
+        code: 'TKT-XYZ456',
+        buyerName: 'Jane Doe',
+        buyerEmail: 'jane@example.com',
+        purchaseDate: DateTime(2025, 1, 1),
+        isScanned: true,
+        scannedAt: scannedAt,
+      );
+
+      expect(ticket.isScanned, true);
+      expect(ticket.scannedAt, scannedAt);
+
+      final json = ticket.toJson();
+      final ticketFromJson = Ticket.fromJson(json);
+      expect(ticketFromJson.isScanned, true);
+      expect(ticketFromJson.scannedAt, isNotNull);
     });
   });
 
@@ -132,12 +160,30 @@ void main() {
       );
 
       final json = user.toJson();
+      expect(json['id'], 1);
       expect(json['name'], 'Test User');
       expect(json['email'], 'test@example.com');
+      expect(json['password'], 'password123');
 
       final userFromJson = User.fromJson(json);
+      expect(userFromJson.id, user.id);
       expect(userFromJson.name, user.name);
       expect(userFromJson.email, user.email);
+      expect(userFromJson.password, user.password);
+    });
+
+    test('User model creates correctly', () {
+      final user = User(
+        id: 123,
+        name: 'John Doe',
+        email: 'john@test.com',
+        password: 'secure123',
+      );
+
+      expect(user.id, 123);
+      expect(user.name, 'John Doe');
+      expect(user.email, 'john@test.com');
+      expect(user.password, 'secure123');
     });
   });
 }
