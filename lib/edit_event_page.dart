@@ -111,7 +111,7 @@ class _EditEventPageState extends State<EditEventPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Kapasitas tidak boleh kurang dari tiket yang sudah terjual (${widget.event.ticketsSold})',
+                    'Kapasitas tidak boleh kurang dari tiket terjual (${widget.event.ticketsSold})',
                   ),
                 ),
               ],
@@ -177,14 +177,14 @@ class _EditEventPageState extends State<EditEventPage> {
         child: SafeArea(
           child: Column(
             children: [
-              // Header
+              // Header dengan withValues
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF9333EA).withValues(alpha: 0.2), // Perbaikan withOpacity
-                      const Color(0xFF3B82F6).withValues(alpha: 0.2), // Perbaikan withOpacity
+                      const Color(0xFF9333EA).withValues(alpha: 0.2),
+                      const Color(0xFF3B82F6).withValues(alpha: 0.2),
                     ],
                   ),
                 ),
@@ -297,12 +297,8 @@ class _EditEventPageState extends State<EditEventPage> {
                                           return 'Wajib diisi';
                                         }
                                         final cap = int.tryParse(value);
-                                        if (cap == null || cap <= 0) {
-                                          return 'Tidak valid';
-                                        }
-                                        if (cap < widget.event.ticketsSold) {
-                                          return 'Min ${widget.event.ticketsSold}';
-                                        }
+                                        if (cap == null || cap <= 0) return 'Tidak valid';
+                                        if (cap < widget.event.ticketsSold) return 'Min ${widget.event.ticketsSold}';
                                         return null;
                                       },
                                     ),
@@ -325,9 +321,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                           return 'Wajib diisi';
                                         }
                                         final price = double.tryParse(value);
-                                        if (price == null || price < 0) {
-                                          return 'Tidak valid';
-                                        }
+                                        if (price == null || price < 0) return 'Tidak valid';
                                         return null;
                                       },
                                     ),
@@ -351,10 +345,10 @@ class _EditEventPageState extends State<EditEventPage> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1), // Perbaikan
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFF3B82F6).withValues(alpha: 0.3), // Perbaikan
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
                               ),
                             ),
                             child: Row(
@@ -367,11 +361,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                     ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Icon(
-                                    Icons.info_outline,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
+                                  child: const Icon(Icons.info_outline, color: Colors.white, size: 20),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -380,10 +370,7 @@ class _EditEventPageState extends State<EditEventPage> {
                                     children: [
                                       const Text(
                                         'Tiket Terjual',
-                                        style: TextStyle(
-                                          color: Color(0xFFC4B5FD),
-                                          fontSize: 12,
-                                        ),
+                                        style: TextStyle(color: Color(0xFFC4B5FD), fontSize: 12),
                                       ),
                                       Text(
                                         '${widget.event.ticketsSold} tiket',
@@ -411,7 +398,7 @@ class _EditEventPageState extends State<EditEventPage> {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF9333EA).withValues(alpha: 0.5), // Perbaikan
+                                  color: const Color(0xFF9333EA).withValues(alpha: 0.5),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -422,9 +409,7 @@ class _EditEventPageState extends State<EditEventPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -461,11 +446,7 @@ class _EditEventPageState extends State<EditEventPage> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
+        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -480,9 +461,9 @@ class _EditEventPageState extends State<EditEventPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: TextFormField(
         controller: controller,
@@ -492,17 +473,11 @@ class _EditEventPageState extends State<EditEventPage> {
         validator: validator,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)), // Perbaikan
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
           prefixIcon: Icon(icon, color: const Color(0xFFC4B5FD)),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 16,
-          ),
-          errorStyle: const TextStyle(
-            color: Colors.redAccent,
-            fontSize: 11,
-          ),
+          contentPadding: const EdgeInsets.all(16),
+          errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 11),
         ),
       ),
     );
@@ -515,9 +490,9 @@ class _EditEventPageState extends State<EditEventPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: InkWell(
         onTap: onPressed,
@@ -531,10 +506,7 @@ class _EditEventPageState extends State<EditEventPage> {
               Expanded(
                 child: Text(
                   text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
               ),
             ],

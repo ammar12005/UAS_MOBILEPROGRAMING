@@ -30,8 +30,10 @@ class _DashboardPageState extends State<DashboardPage> {
   }
   
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     
+    // Memuat data berdasarkan ID user
     final loadedEvents = await StorageService.getEvents(widget.user.id);
     final loadedTickets = await StorageService.getTickets(widget.user.id);
     
@@ -44,7 +46,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _handleDeleteEvent(int eventId) {
+  Future<void> _handleDeleteEvent(int eventId) async {
     final updatedEvents = events.where((e) => e.id != eventId).toList();
     final updatedTickets = tickets.where((t) => t.eventId != eventId).toList();
     
@@ -53,8 +55,9 @@ class _DashboardPageState extends State<DashboardPage> {
       tickets = updatedTickets;
     });
     
-    StorageService.saveEvents(widget.user.id, updatedEvents);
-    StorageService.saveTickets(widget.user.id, updatedTickets);
+    // Simpan perubahan secara permanen
+    await StorageService.saveEvents(widget.user.id, updatedEvents);
+    await StorageService.saveTickets(widget.user.id, updatedTickets);
   }
 
   @override
@@ -81,22 +84,24 @@ class _DashboardPageState extends State<DashboardPage> {
         user: widget.user,
         events: events,
         tickets: tickets,
-        onEventsChanged: (updatedEvents) {
+        onEventsChanged: (updatedEvents) async {
           setState(() => events = updatedEvents);
-          StorageService.saveEvents(widget.user.id, updatedEvents);
+          await StorageService.saveEvents(widget.user.id, updatedEvents);
         },
-        onTicketsChanged: (updatedTickets) {
+        onTicketsChanged: (updatedTickets) async {
           setState(() => tickets = updatedTickets);
-          StorageService.saveTickets(widget.user.id, updatedTickets);
+          await StorageService.saveTickets(widget.user.id, updatedTickets);
         },
         onEventDeleted: _handleDeleteEvent,
+        // Tambahkan refresh callback untuk memastikan data tetap sinkron
+        onRefresh: _loadData, 
       ),
       ScanPage(
         tickets: tickets,
         events: events,
-        onTicketsChanged: (updatedTickets) {
+        onTicketsChanged: (updatedTickets) async {
           setState(() => tickets = updatedTickets);
-          StorageService.saveTickets(widget.user.id, updatedTickets);
+          await StorageService.saveTickets(widget.user.id, updatedTickets);
         },
       ),
       StatisticsPage(events: events, tickets: tickets),
@@ -106,10 +111,10 @@ class _DashboardPageState extends State<DashboardPage> {
       body: pages[_selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1E293B), // Diubah ke warna gelap agar sesuai tema
+          color: const Color(0xFF1E293B),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3), // PERBAIKAN: withValues
+              color: Colors.black.withValues(alpha: 0.3),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -142,6 +147,7 @@ class EventsPage extends StatelessWidget {
   final Function(List<Event>) onEventsChanged;
   final Function(List<Ticket>) onTicketsChanged;
   final Function(int) onEventDeleted;
+  final Future<void> Function() onRefresh; // New refresh callback
 
   const EventsPage({
     super.key,
@@ -151,6 +157,7 @@ class EventsPage extends StatelessWidget {
     required this.onEventsChanged,
     required this.onTicketsChanged,
     required this.onEventDeleted,
+    required this.onRefresh,
   });
 
   void _showDeleteDialog(BuildContext context, Event event) {
@@ -172,12 +179,6 @@ class EventsPage extends StatelessWidget {
             onPressed: () {
               onEventDeleted(event.id);
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Event ${event.name} berhasil dihapus'),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
             },
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
             child: const Text('Hapus'),
@@ -212,8 +213,8 @@ class EventsPage extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFF9333EA).withValues(alpha: 0.2), // PERBAIKAN: withValues
-                    const Color(0xFF3B82F6).withValues(alpha: 0.2), // PERBAIKAN: withValues
+                    const Color(0xFF9333EA).withValues(alpha: 0.2),
+                    const Color(0xFF3B82F6).withValues(alpha: 0.2),
                   ],
                 ),
               ),
@@ -253,6 +254,7 @@ class EventsPage extends StatelessWidget {
                     children: [
                       IconButton(
                         onPressed: () async {
+                          // Gunakan await untuk menunggu kembali dari halaman create
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -263,6 +265,8 @@ class EventsPage extends StatelessWidget {
                               ),
                             ),
                           );
+                          // Paksa load ulang setelah kembali
+                          await onRefresh(); 
                         },
                         icon: const Icon(Icons.add_circle, color: Color(0xFF9333EA), size: 32),
                       ),
@@ -299,159 +303,163 @@ class EventsPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: events.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+              child: RefreshIndicator(
+                onRefresh: onRefresh,
+                child: events.isEmpty
+                    ? ListView( // Gunakan listview agar RefreshIndicator bekerja
                         children: [
-                          Icon(Icons.event_busy, size: 80, color: Colors.white.withValues(alpha: 0.3)), // PERBAIKAN
-                          const SizedBox(height: 16),
-                          Text(
-                            'Belum ada event',
-                            style: TextStyle(fontSize: 18, color: Colors.white.withValues(alpha: 0.7)),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Buat event pertama Anda!',
-                            style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.5)),
+                          SizedBox(height: MediaQuery.of(context).size.height * 0.3),
+                          Center(
+                            child: Column(
+                              children: [
+                                Icon(Icons.event_busy, size: 80, color: Colors.white.withValues(alpha: 0.3)),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Belum ada event',
+                                  style: TextStyle(fontSize: 18, color: Colors.white.withValues(alpha: 0.7)),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(24),
-                      itemCount: events.length,
-                      itemBuilder: (context, index) {
-                        final event = events[index];
-                        final gradient = gradients[index % gradients.length];
-                        
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(24),
+                        itemCount: events.length,
+                        itemBuilder: (context, index) {
+                          final event = events[index];
+                          final gradient = gradients[index % gradients.length];
+                          
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(24),
-                              onLongPress: () => _showDeleteDialog(context, event),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => EventDetailPage(
-                                      event: event,
-                                      tickets: tickets,
-                                      onTicketsChanged: onTicketsChanged,
-                                      onEventChanged: (updated) {
-                                        final updatedEvents = [...events];
-                                        updatedEvents[index] = updated;
-                                        onEventsChanged(updatedEvents);
-                                      },
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Container(
-                                          width: 56,
-                                          height: 56,
-                                          decoration: BoxDecoration(
-                                            gradient: gradient,
-                                            borderRadius: BorderRadius.circular(16),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: gradient.colors.first.withValues(alpha: 0.3), // PERBAIKAN
-                                                blurRadius: 12,
-                                                offset: const Offset(0, 4),
-                                              ),
-                                            ],
-                                          ),
-                                          child: const Icon(Icons.calendar_today, color: Colors.white, size: 28),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                event.name,
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Row(
-                                                children: [
-                                                  const Icon(Icons.access_time, color: Color(0xFFC4B5FD), size: 16),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    DateFormat('dd MMM yyyy').format(event.date),
-                                                    style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
-                                                  ),
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.05), // PERBAIKAN
-                                        borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(24),
+                                onLongPress: () => _showDeleteDialog(context, event),
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => EventDetailPage(
+                                        event: event,
+                                        tickets: tickets,
+                                        onTicketsChanged: onTicketsChanged,
+                                        onEventChanged: (updated) {
+                                          final updatedEvents = [...events];
+                                          updatedEvents[index] = updated;
+                                          onEventsChanged(updatedEvents);
+                                        },
                                       ),
-                                      child: Row(
+                                    ),
+                                  );
+                                  // Sinkronisasi data saat kembali dari detail
+                                  await onRefresh(); 
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
                                         children: [
-                                          const Icon(Icons.location_on, color: Color(0xFFC4B5FD), size: 18),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              event.location,
-                                              style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
                                           Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            width: 56,
+                                            height: 56,
                                             decoration: BoxDecoration(
                                               gradient: gradient,
-                                              borderRadius: BorderRadius.circular(8),
+                                              borderRadius: BorderRadius.circular(16),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: gradient.colors.first.withValues(alpha: 0.3),
+                                                  blurRadius: 12,
+                                                  offset: const Offset(0, 4),
+                                                ),
+                                              ],
                                             ),
-                                            child: Text(
-                                              '${event.ticketsSold}/${event.capacity}',
-                                              style: const TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
+                                            child: const Icon(Icons.calendar_today, color: Colors.white, size: 28),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  event.name,
+                                                  style: const TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Row(
+                                                  children: [
+                                                    const Icon(Icons.access_time, color: Color(0xFFC4B5FD), size: 16),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      DateFormat('dd MMM yyyy').format(event.date),
+                                                      style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 16),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.05),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.location_on, color: Color(0xFFC4B5FD), size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                event.location,
+                                                style: const TextStyle(fontSize: 14, color: Color(0xFFC4B5FD)),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                gradient: gradient,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                '${event.ticketsSold}/${event.capacity}',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
+                          );
+                        },
+                      ),
+              ),
             ),
           ],
         ),
