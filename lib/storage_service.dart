@@ -14,7 +14,6 @@ class StorageService {
       if (data == null) return [];
       return (json.decode(data) as List).map((u) => User.fromJson(u)).toList();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (getUsers): $e');
       return [];
     }
   }
@@ -23,9 +22,9 @@ class StorageService {
     try {
       final jsonData = json.encode(users.map((u) => u.toJson()).toList());
       await _box.put('${_prefix}users', jsonData);
-      await _box.flush(); // Menjamin data tersimpan permanen di Web
+      await _box.flush();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (saveUsers): $e');
+      if (kDebugMode) debugPrint('Error saveUsers: $e');
     }
   }
 
@@ -37,7 +36,7 @@ class StorageService {
       await _box.put('${_prefix}user_id', user.id);
       await _box.flush();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (setSession): $e');
+      if (kDebugMode) debugPrint('Error setSession: $e');
     }
   }
 
@@ -45,9 +44,9 @@ class StorageService {
     try {
       if (_box.get('${_prefix}is_logged_in') != 'true') return null;
       final data = _box.get('${_prefix}current_user');
-      return data != null ? User.fromJson(json.decode(data)) : null;
+      if (data == null) return null;
+      return User.fromJson(json.decode(data));
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (getSession): $e');
       return null;
     }
   }
@@ -58,7 +57,7 @@ class StorageService {
       await _box.put('${_prefix}is_logged_in', 'false');
       await _box.flush();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (logout): $e');
+      if (kDebugMode) debugPrint('Error logout: $e');
     }
   }
 
@@ -69,7 +68,6 @@ class StorageService {
       if (data == null) return [];
       return (json.decode(data) as List).map((e) => Event.fromJson(e)).toList();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (getEvents): $e');
       return [];
     }
   }
@@ -78,21 +76,19 @@ class StorageService {
     try {
       final jsonData = json.encode(events.map((e) => e.toJson()).toList());
       await _box.put('${_prefix}events_$userId', jsonData);
-      await _box.flush(); // Paksa tulis ke disk browser
-      if (kDebugMode) debugPrint('StorageService: Saved ${events.length} events for user $userId');
+      await _box.flush();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (saveEvents): $e');
+      if (kDebugMode) debugPrint('Error saveEvents: $e');
     }
   }
 
-  // --- Tickets Management ---
+  // --- Tickets Management (MEMPERBAIKI ERROR image_6cc83e.jpg) ---
   static Future<List<Ticket>> getTickets(int userId) async {
     try {
       final data = _box.get('${_prefix}tickets_$userId');
       if (data == null) return [];
       return (json.decode(data) as List).map((t) => Ticket.fromJson(t)).toList();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (getTickets): $e');
       return [];
     }
   }
@@ -103,7 +99,7 @@ class StorageService {
       await _box.put('${_prefix}tickets_$userId', jsonData);
       await _box.flush();
     } catch (e) {
-      if (kDebugMode) debugPrint('StorageService Error (saveTickets): $e');
+      if (kDebugMode) debugPrint('Error saveTickets: $e');
     }
   }
 }
