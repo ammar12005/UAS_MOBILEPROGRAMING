@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models.dart';
 import '../storage_service.dart';
+import '../database/database_helper.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -14,6 +15,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _emailController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final DatabaseHelper _dbHelper = DatabaseHelper();
   
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
@@ -52,13 +54,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
 
     try {
-      final users = await StorageService.getUsers();
+      // Cari user di SQLite berdasarkan email
+      final user = await StorageService.getUserByEmail(emailInput);
       await Future.delayed(const Duration(milliseconds: 600));
-      
-      final user = users.cast<User?>().firstWhere(
-        (u) => u?.email.trim().toLowerCase() == emailInput,
-        orElse: () => null,
-      );
 
       if (mounted) {
         if (user != null) {
@@ -104,21 +102,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     });
 
     try {
-      final users = await StorageService.getUsers();
-      final index = users.indexWhere((u) => u.id == _foundUser!.id);
+      // Update password di SQLite
+      final updatedUser = User(
+        id: _foundUser!.id,
+        name: _foundUser!.name,
+        email: _foundUser!.email,
+        password: _newPasswordController.text.trim(),
+      );
       
-      if (index != -1) {
-        users[index] = User(
-          id: _foundUser!.id,
-          name: _foundUser!.name,
-          email: _foundUser!.email,
-          password: _newPasswordController.text.trim(),
-        );
-        
-        await StorageService.saveUsers(users);
-        await Future.delayed(const Duration(milliseconds: 500));
-        
-        if (mounted) {
+      final success = await _dbHelper.updateUser(updatedUser);
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      if (mounted) {
+        if (success > 0) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: const Row(
@@ -144,10 +140,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           if (mounted) {
             Navigator.pop(context);
           }
-        }
-      } else {
-        if (mounted) {
-          setState(() => _errorMessage = 'Data user tidak ditemukan');
+        } else {
+          setState(() => _errorMessage = 'Gagal memperbarui password');
         }
       }
     } catch (e) {
@@ -190,11 +184,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               // Header
               Container(
                 padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Color(0x339333EA),
-                      Color(0x333B82F6),
+                      const Color(0xFF9333EA).withValues(alpha: 0.2),
+                      const Color(0xFF3B82F6).withValues(alpha: 0.2),
                     ],
                   ),
                 ),
@@ -202,7 +196,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isLoading ? null : () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -224,7 +218,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     padding: const EdgeInsets.all(24),
                     child: Card(
                       elevation: 20,
-                      color: const Color.fromRGBO(147, 51, 234, 0.3),
+                      shadowColor: const Color(0x809333EA),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(24),
                       ),
@@ -246,7 +240,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF9333EA).withValues(alpha: 0.3),  // gunakan color, bukan shadowColor
+                                      color: const Color(0xFF9333EA).withValues(alpha: 0.3),
                                       blurRadius: 15,
                                       offset: const Offset(0, 5),
                                     ),
@@ -374,9 +368,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                       : Colors.grey[50],
                                 ),
                                 keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.done,
+                                onFieldSubmitted: (_) => !_emailVerified ? _checkEmail() : null,
                                 validator: (v) {
                                   if (v?.trim().isEmpty ?? true) return 'Email harus diisi';
-                                  if (!v!.contains('@')) return 'Email tidak valid';
+                                  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                  if (!emailRegex.hasMatch(v!)) return 'Email tidak valid';
                                   return null;
                                 },
                               ),
@@ -451,6 +448,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     filled: true,
                                     fillColor: Colors.grey[50],
                                   ),
+                                  textInputAction: TextInputAction.next,
                                   validator: (v) {
                                     if (v?.trim().isEmpty ?? true) {
                                       return 'Password harus diisi';
@@ -485,6 +483,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                                     filled: true,
                                     fillColor: Colors.grey[50],
                                   ),
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _resetPassword(),
                                   validator: (v) {
                                     if (v?.trim().isEmpty ?? true) {
                                       return 'Konfirmasi password harus diisi';

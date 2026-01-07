@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models.dart';
+import '../database/database_helper.dart';
 
 class CreateEventPage extends StatefulWidget {
   final Function(Event) onEventCreated;
@@ -12,12 +13,16 @@ class CreateEventPage extends StatefulWidget {
 
 class _CreateEventPageState extends State<CreateEventPage> {
   final _formKey = GlobalKey<FormState>();
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+  
   final _n = TextEditingController();
   final _l = TextEditingController();
   final _c = TextEditingController();
   final _p = TextEditingController();
   final _d = TextEditingController();
   DateTime _date = DateTime.now().add(const Duration(days: 7));
+  
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -76,6 +81,81 @@ class _CreateEventPageState extends State<CreateEventPage> {
     }
   }
 
+  Future<void> _createEvent() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isSaving = true);
+
+      try {
+        // Buat event baru
+        final newEvent = Event(
+          id: DateTime.now().millisecondsSinceEpoch,
+          name: _n.text.trim(),
+          date: _date,
+          location: _l.text.trim(),
+          capacity: int.tryParse(_c.text) ?? 0,
+          price: double.tryParse(_p.text) ?? 0.0,
+          description: _d.text.trim(),
+          ticketsSold: 0,
+        );
+        
+        // Simpan ke database SQLite
+        await _dbHelper.insertEvent(newEvent);
+        
+        // Kirim ke callback untuk update UI
+        widget.onEventCreated(newEvent);
+        
+        if (mounted) {
+          // Kembali ke halaman sebelumnya
+          Navigator.pop(context, newEvent);
+          
+          // Tampilkan notifikasi sukses
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text('Event berhasil dibuat dan disimpan!'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Gagal menyimpan event: $e')),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,7 +184,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 12),
                     const Column(
@@ -141,7 +221,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         controller: _n,
                         hint: 'Contoh: Tech Conference 2026',
                         icon: Icons.event,
-                        validator: (v) => v == null || v.isEmpty ? 'Nama event harus diisi' : null,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Nama event harus diisi' : null,
                       ),
                       const SizedBox(height: 20),
 
@@ -151,14 +231,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         controller: _l,
                         hint: 'Contoh: Jakarta Convention Center',
                         icon: Icons.location_on,
-                        validator: (v) => v == null || v.isEmpty ? 'Lokasi harus diisi' : null,
+                        validator: (v) => v == null || v.trim().isEmpty ? 'Lokasi harus diisi' : null,
                       ),
                       const SizedBox(height: 20),
 
                       _buildLabel('Tanggal & Waktu'),
                       const SizedBox(height: 8),
                       InkWell(
-                        onTap: _pickDate,
+                        onTap: _isSaving ? null : _pickDate,
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
                           padding: const EdgeInsets.all(16),
@@ -210,7 +290,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   hint: '100',
                                   icon: Icons.people,
                                   keyboardType: TextInputType.number,
-                                  validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'Wajib diisi';
+                                    final capacity = int.tryParse(v);
+                                    if (capacity == null || capacity <= 0) return 'Tidak valid';
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),
@@ -227,7 +312,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
                                   hint: '50000',
                                   icon: Icons.payments,
                                   keyboardType: TextInputType.number,
-                                  validator: (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'Wajib diisi';
+                                    final price = double.tryParse(v);
+                                    if (price == null || price < 0) return 'Tidak valid';
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),
@@ -247,6 +337,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         child: TextFormField(
                           controller: _d,
                           maxLines: 5,
+                          enabled: !_isSaving,
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
                             hintText: 'Jelaskan detail acara Anda di sini...',
@@ -254,7 +345,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
                           ),
-                          validator: (v) => v == null || v.isEmpty ? 'Deskripsi harus diisi' : null,
+                          validator: (v) => v == null || v.trim().isEmpty ? 'Deskripsi harus diisi' : null,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -275,26 +366,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           ],
                         ),
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              // ✅ Buat event baru
-                              final newEvent = Event(
-                                id: DateTime.now().millisecondsSinceEpoch,
-                                name: _n.text,
-                                date: _date,
-                                location: _l.text,
-                                capacity: int.tryParse(_c.text) ?? 0,
-                                price: double.tryParse(_p.text) ?? 0.0,
-                                description: _d.text,
-                                ticketsSold: 0,
-                              );
-                              
-                              // ✅ Kirim ke callback (yang akan save ke storage)
-                              widget.onEventCreated(newEvent);
-                              
-                              // ✅ HAPUS SnackBar dari sini, biar tampil di dashboard
-                            }
-                          },
+                          onPressed: _isSaving ? null : _createEvent,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -303,20 +375,29 @@ class _CreateEventPageState extends State<CreateEventPage> {
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.check_circle, size: 24),
-                              SizedBox(width: 12),
-                              Text(
-                                'Simpan Event',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                          child: _isSaving
+                              ? const SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.check_circle, size: 24),
+                                    SizedBox(width: 12),
+                                    Text(
+                                      'Simpan Event',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                            ],
-                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -358,6 +439,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
+        enabled: !_isSaving,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
           hintText: hint,

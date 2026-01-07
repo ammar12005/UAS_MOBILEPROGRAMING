@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models.dart';
-import '../storage_service.dart';
+import '../database/database_helper.dart';
 import 'create_event_page.dart';
 import 'event_detail_page.dart';
 import 'scan_page.dart';
@@ -18,6 +18,8 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+  
   int _selectedIndex = 0;
   List<Event> events = [];
   List<Ticket> tickets = [];
@@ -33,66 +35,51 @@ class _DashboardPageState extends State<DashboardPage> {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
-    // Memuat data berdasarkan ID user
-    final loadedEvents = await StorageService.getEvents(widget.user.id);
-    final loadedTickets = await StorageService.getTickets(widget.user.id);
+    try {
+      // Load data dari SQLite
+      final loadedEvents = await _dbHelper.getAllEvents();
+      final loadedTickets = await _dbHelper.getAllTickets();
 
-    if (mounted) {
-      setState(() {
-        events = loadedEvents;
-        tickets = loadedTickets;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          events = loadedEvents;
+          tickets = loadedTickets;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _handleDeleteEvent(int eventId) async {
-    final updatedEvents = events.where((e) => e.id != eventId).toList();
-    final updatedTickets = tickets.where((t) => t.eventId != eventId).toList();
+    try {
+      // Hapus dari database
+      await _dbHelper.deleteEvent(eventId);
+      
+      // Hapus tiket terkait
+      final ticketsToDelete = tickets.where((t) => t.eventId == eventId).toList();
+      for (var ticket in ticketsToDelete) {
+        await _dbHelper.deleteTicket(ticket.id);
+      }
 
-    setState(() {
-      events = updatedEvents;
-      tickets = updatedTickets;
-    });
-
-    // Simpan perubahan secara permanen
-    await StorageService.saveEvents(widget.user.id, updatedEvents);
-    await StorageService.saveTickets(widget.user.id, updatedTickets);
-  }
-
-  // ✅ PERBAIKAN: Fungsi untuk handle create event dengan save langsung
-  Future<void> _handleCreateEvent() async {
-    final result = await Navigator.push<Event>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CreateEventPage(
-          onEventCreated: (event) {
-            // Return event ke halaman sebelumnya
-            Navigator.pop(context, event);
-          },
-        ),
-      ),
-    );
-
-    // ✅ Jika ada event baru, tambahkan dan simpan SEGERA
-    if (result != null) {
-      final updatedEvents = [...events, result];
+      // Update UI
       setState(() {
-        events = updatedEvents;
+        events.removeWhere((e) => e.id == eventId);
+        tickets.removeWhere((t) => t.eventId == eventId);
       });
-
-      // ✅ SIMPAN KE STORAGE LANGSUNG
-      await StorageService.saveEvents(widget.user.id, updatedEvents);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(
-              // ✅ Pindahkan 'const' ke sini
               children: [
                 Icon(Icons.check_circle, color: Colors.white),
                 SizedBox(width: 12),
-                Text('Event berhasil disimpan!'),
+                Text('Event berhasil dihapus'),
               ],
             ),
             backgroundColor: Colors.green,
@@ -103,6 +90,44 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         );
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Gagal menghapus event: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleCreateEvent() async {
+    final result = await Navigator.push<Event>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CreateEventPage(
+          onEventCreated: (event) {
+            // Event sudah disimpan di CreateEventPage
+            // Return event ke halaman ini
+          },
+        ),
+      ),
+    );
+
+    // Jika ada event baru yang dikembalikan, reload data
+    if (result != null) {
+      await _loadData(); // Reload semua data dari database
     }
   }
 
@@ -132,22 +157,19 @@ class _DashboardPageState extends State<DashboardPage> {
         tickets: tickets,
         onEventsChanged: (updatedEvents) async {
           setState(() => events = updatedEvents);
-          await StorageService.saveEvents(widget.user.id, updatedEvents);
         },
         onTicketsChanged: (updatedTickets) async {
           setState(() => tickets = updatedTickets);
-          await StorageService.saveTickets(widget.user.id, updatedTickets);
         },
         onEventDeleted: _handleDeleteEvent,
         onRefresh: _loadData,
-        onCreateEvent: _handleCreateEvent, // ✅ Pass fungsi create event
+        onCreateEvent: _handleCreateEvent,
       ),
       ScanPage(
         tickets: tickets,
         events: events,
         onTicketsChanged: (updatedTickets) async {
           setState(() => tickets = updatedTickets);
-          await StorageService.saveTickets(widget.user.id, updatedTickets);
         },
       ),
       StatisticsPage(events: events, tickets: tickets),
@@ -196,7 +218,7 @@ class EventsPage extends StatelessWidget {
   final Function(List<Ticket>) onTicketsChanged;
   final Function(int) onEventDeleted;
   final Future<void> Function() onRefresh;
-  final Future<void> Function() onCreateEvent; // ✅ Tambah parameter
+  final Future<void> Function() onCreateEvent;
 
   const EventsPage({
     super.key,
@@ -207,7 +229,7 @@ class EventsPage extends StatelessWidget {
     required this.onTicketsChanged,
     required this.onEventDeleted,
     required this.onRefresh,
-    required this.onCreateEvent, // ✅ Tambah required
+    required this.onCreateEvent,
   });
 
   void _showDeleteDialog(BuildContext context, Event event) {
@@ -215,6 +237,7 @@ class EventsPage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Hapus Event', style: TextStyle(color: Colors.white)),
         content: Text(
           'Apakah Anda yakin ingin menghapus "${event.name}"? Semua tiket terkait juga akan terhapus.',
@@ -223,12 +246,12 @@ class EventsPage extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            child: const Text('Batal', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () {
-              onEventDeleted(event.id);
               Navigator.pop(context);
+              onEventDeleted(event.id);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
             child: const Text('Hapus'),
@@ -236,6 +259,39 @@ class EventsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showLogoutDialog(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Logout', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Yakin ingin keluar?',
+          style: TextStyle(color: Color(0xFFC4B5FD)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirm == true && context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+    }
   }
 
   @override
@@ -304,45 +360,15 @@ class EventsPage extends StatelessWidget {
                   Row(
                     children: [
                       IconButton(
-                        onPressed: onCreateEvent, // ✅ Gunakan fungsi baru
+                        onPressed: onCreateEvent,
                         icon: const Icon(Icons.add_circle,
                             color: Color(0xFF9333EA), size: 32),
+                        tooltip: 'Buat Event Baru',
                       ),
                       IconButton(
                         icon: const Icon(Icons.logout, color: Colors.white),
-                        onPressed: () async {
-                          final confirm = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              backgroundColor: const Color(0xFF1E293B),
-                              title: const Text('Logout',
-                                  style: TextStyle(color: Colors.white)),
-                              content: const Text('Yakin ingin keluar?',
-                                  style: TextStyle(color: Colors.white70)),
-                              actions: [
-                                TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: const Text('Batal')),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  style: TextButton.styleFrom(
-                                      foregroundColor: Colors.redAccent),
-                                  child: const Text('Keluar'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirm == true) {
-                            await StorageService.logout();
-                            if (context.mounted) {
-                              Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const LoginPage()));
-                            }
-                          }
-                        },
+                        onPressed: () => _showLogoutDialog(context),
+                        tooltip: 'Logout',
                       ),
                     ],
                   ),
@@ -352,6 +378,8 @@ class EventsPage extends StatelessWidget {
             Expanded(
               child: RefreshIndicator(
                 onRefresh: onRefresh,
+                color: const Color(0xFF9333EA),
+                backgroundColor: const Color(0xFF1E293B),
                 child: events.isEmpty
                     ? ListView(
                         children: [
@@ -370,6 +398,14 @@ class EventsPage extends StatelessWidget {
                                       fontSize: 18,
                                       color:
                                           Colors.white.withValues(alpha: 0.7)),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tap tombol + untuk membuat event baru',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.5)),
                                 ),
                               ],
                             ),
@@ -457,6 +493,8 @@ class EventsPage extends StatelessWidget {
                                                     fontWeight: FontWeight.bold,
                                                     color: Colors.white,
                                                   ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Row(

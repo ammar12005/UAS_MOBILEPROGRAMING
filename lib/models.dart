@@ -28,6 +28,22 @@ class User {
     email: json['email'],
     password: json['password'],
   );
+
+  /// Konversi User ke Map untuk SQLite
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'email': email,
+    'password': password,
+  };
+  
+  /// Buat User dari Map SQLite
+  factory User.fromMap(Map<String, dynamic> map) => User(
+    id: map['id'],
+    name: map['name'],
+    email: map['email'],
+    password: map['password'],
+  );
 }
 
 /// Model untuk data Event
@@ -73,6 +89,30 @@ class Event {
     description: json['description'],
     ticketsSold: json['ticketsSold'] ?? 0,
   );
+
+  /// Konversi Event ke Map untuk SQLite
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'name': name,
+    'date': date.toIso8601String(),
+    'location': location,
+    'capacity': capacity,
+    'price': price,
+    'description': description,
+    'ticketsSold': ticketsSold,
+  };
+  
+  /// Buat Event dari Map SQLite
+  factory Event.fromMap(Map<String, dynamic> map) => Event(
+    id: map['id'],
+    name: map['name'],
+    date: DateTime.parse(map['date']),
+    location: map['location'],
+    capacity: map['capacity'],
+    price: (map['price'] as num).toDouble(),
+    description: map['description'] ?? '',
+    ticketsSold: map['ticketsSold'] ?? 0,
+  );
 }
 
 /// Model untuk data Ticket/Tiket
@@ -116,5 +156,29 @@ class Ticket {
     purchaseDate: DateTime.parse(json['purchaseDate']),
     isScanned: json['isScanned'] ?? false,
     scannedAt: json['scannedAt'] != null ? DateTime.parse(json['scannedAt']) : null,
+  );
+
+  /// Konversi Ticket ke Map untuk SQLite
+  Map<String, dynamic> toMap() => {
+    'id': id,
+    'eventId': eventId,
+    'code': code,
+    'buyerName': buyerName,
+    'buyerEmail': buyerEmail,
+    'purchaseDate': purchaseDate.toIso8601String(),
+    'isScanned': isScanned ? 1 : 0, // SQLite menggunakan INTEGER untuk boolean
+    'scannedAt': scannedAt?.toIso8601String(),
+  };
+  
+  /// Buat Ticket dari Map SQLite
+  factory Ticket.fromMap(Map<String, dynamic> map) => Ticket(
+    id: map['id'],
+    eventId: map['eventId'],
+    code: map['code'],
+    buyerName: map['buyerName'],
+    buyerEmail: map['buyerEmail'],
+    purchaseDate: DateTime.parse(map['purchaseDate']),
+    isScanned: map['isScanned'] == 1, // Convert INTEGER ke boolean
+    scannedAt: map['scannedAt'] != null ? DateTime.parse(map['scannedAt']) : null,
   );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models.dart';
+import '../database/database_helper.dart';
 
 class EditEventPage extends StatefulWidget {
   final Event event;
@@ -18,6 +19,8 @@ class EditEventPage extends StatefulWidget {
 
 class _EditEventPageState extends State<EditEventPage> {
   final _formKey = GlobalKey<FormState>();
+  final DatabaseHelper _dbHelper = DatabaseHelper();
+  
   late TextEditingController _nameController;
   late TextEditingController _locationController;
   late TextEditingController _capacityController;
@@ -25,6 +28,8 @@ class _EditEventPageState extends State<EditEventPage> {
   late TextEditingController _descriptionController;
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
+  
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -98,7 +103,7 @@ class _EditEventPageState extends State<EditEventPage> {
     }
   }
 
-  void _saveChanges() {
+  Future<void> _saveChanges() async {
     if (_formKey.currentState!.validate()) {
       final capacity = int.tryParse(_capacityController.text) ?? 0;
       
@@ -124,42 +129,74 @@ class _EditEventPageState extends State<EditEventPage> {
         return;
       }
 
-      final updatedDate = DateTime(
-        _selectedDate.year,
-        _selectedDate.month,
-        _selectedDate.day,
-        _selectedTime.hour,
-        _selectedTime.minute,
-      );
+      setState(() => _isSaving = true);
 
-      final updatedEvent = Event(
-        id: widget.event.id,
-        name: _nameController.text.trim(),
-        date: updatedDate,
-        location: _locationController.text.trim(),
-        capacity: capacity,
-        price: double.tryParse(_priceController.text) ?? 0,
-        description: _descriptionController.text.trim(),
-        ticketsSold: widget.event.ticketsSold,
-      );
+      try {
+        final updatedDate = DateTime(
+          _selectedDate.year,
+          _selectedDate.month,
+          _selectedDate.day,
+          _selectedTime.hour,
+          _selectedTime.minute,
+        );
 
-      widget.onEventUpdated(updatedEvent);
-      Navigator.pop(context, updatedEvent);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Event berhasil diperbarui'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+        final updatedEvent = Event(
+          id: widget.event.id,
+          name: _nameController.text.trim(),
+          date: updatedDate,
+          location: _locationController.text.trim(),
+          capacity: capacity,
+          price: double.tryParse(_priceController.text) ?? 0,
+          description: _descriptionController.text.trim(),
+          ticketsSold: widget.event.ticketsSold,
+        );
+
+        // Simpan ke database SQLite
+        await _dbHelper.updateEvent(updatedEvent);
+
+        // Update callback untuk update UI
+        widget.onEventUpdated(updatedEvent);
+
+        if (mounted) {
+          Navigator.pop(context, updatedEvent);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Event berhasil diperbarui dan disimpan'),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Error: $e')),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSaving = false);
+        }
+      }
     }
   }
 
@@ -183,8 +220,8 @@ class _EditEventPageState extends State<EditEventPage> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF9333EA).withValues(alpha: 0.2), // Perbaikan withOpacity
-                      const Color(0xFF3B82F6).withValues(alpha: 0.2), // Perbaikan withOpacity
+                      const Color(0xFF9333EA).withValues(alpha: 0.2),
+                      const Color(0xFF3B82F6).withValues(alpha: 0.2),
                     ],
                   ),
                 ),
@@ -192,7 +229,7 @@ class _EditEventPageState extends State<EditEventPage> {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _isSaving ? null : () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 12),
                     const Column(
@@ -340,10 +377,10 @@ class _EditEventPageState extends State<EditEventPage> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1), // Perbaikan
+                              color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFF3B82F6).withValues(alpha: 0.3), // Perbaikan
+                                color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
                               ),
                             ),
                             child: Row(
@@ -394,30 +431,39 @@ class _EditEventPageState extends State<EditEventPage> {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF9333EA).withValues(alpha: 0.5), // Perbaikan
+                                  color: const Color(0xFF9333EA).withValues(alpha: 0.5),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
                               ],
                             ),
                             child: ElevatedButton(
-                              onPressed: _saveChanges,
+                              onPressed: _isSaving ? null : _saveChanges,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.transparent,
                                 shadowColor: Colors.transparent,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.save, size: 24, color: Colors.white),
-                                  SizedBox(width: 12),
-                                  Text(
-                                    'Simpan Perubahan',
-                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
-                                  ),
-                                ],
-                              ),
+                              child: _isSaving
+                                  ? const SizedBox(
+                                      height: 24,
+                                      width: 24,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.save, size: 24, color: Colors.white),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          'Simpan Perubahan',
+                                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
                             ),
                           ),
                         ],
@@ -453,9 +499,9 @@ class _EditEventPageState extends State<EditEventPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: TextFormField(
         controller: controller,
@@ -463,9 +509,10 @@ class _EditEventPageState extends State<EditEventPage> {
         maxLines: maxLines ?? 1,
         style: const TextStyle(color: Colors.white),
         validator: validator,
+        enabled: !_isSaving,
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)), // Perbaikan
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
           prefixIcon: Icon(icon, color: const Color(0xFFC4B5FD)),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.all(16),
@@ -482,12 +529,12 @@ class _EditEventPageState extends State<EditEventPage> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1), // Perbaikan
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)), // Perbaikan
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: InkWell(
-        onTap: onPressed,
+        onTap: _isSaving ? null : onPressed,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
