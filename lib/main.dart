@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
 import 'models.dart';
 import 'storage_service.dart';
 import 'database/database_helper.dart';
@@ -9,7 +10,10 @@ import 'pages/dashboard_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize SQLite Database
+  // IMPORTANT: Initialize sqflite first
+  await databaseFactory.setDatabasesPath(await getDatabasesPath());
+  
+  // Initialize Database
   await _initializeDatabase();
   
   // Buat akun default jika belum ada
