@@ -20,15 +20,15 @@ void main() async {
 // Fungsi untuk membuat user default
 Future<void> _createDefaultUser() async {
   try {
-    final existingUser = await HiveService.getUserByEmail('admin@gmail.com');
+    final existingUser = await HiveService.getUserByEmail('user@gmail.com');
     if (existingUser == null) {
       await HiveService.createUser(User(
         id: 1,
-        name: 'Admin',
-        email: 'admin@gmail.com',
+        name: 'User',
+        email: 'user@gmail.com',
         password: '123456',
       ));
-      debugPrint('✅ Default user created: admin@gmail.com');
+      debugPrint('✅ Default user created: user@gmail.com');
     } else {
       debugPrint('✅ User already exists: ${existingUser.email}');
     }

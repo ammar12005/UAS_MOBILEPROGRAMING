@@ -280,7 +280,7 @@ class _DebugInfo extends StatelessWidget {
     return const Padding(
       padding: EdgeInsets.only(top: 20),
       child: Text(
-        'Akun Test:\nadmin@gmail.com / 123456',
+        'Akun Test:\nuserS@gmail.com / 123456',
         textAlign: TextAlign.center,
         style: TextStyle(fontSize: 11, color: Colors.blue, fontFamily: 'monospace'),
       ),
