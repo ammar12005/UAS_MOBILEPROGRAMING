@@ -36,8 +36,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
   bool _isLoading = false;
 
   // Konfigurasi kontak untuk fitur inovatif
-  final String organizerPhone = '081234567890';
-  final String organizerWhatsApp = '6281234567890';
+  // PENTING: Format nomor WhatsApp harus 62XXXXXXXXX (kode negara + nomor tanpa 0)
+  // Contoh: 081234567890 -> 6281234567890
+  final String organizerPhone = '087837007684';
+  final String organizerWhatsApp = '6287837007684';
   final String organizerEmail = 'organizer@eventpro.com';
 
   @override
@@ -78,6 +80,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -86,11 +89,21 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
   // Fitur 1: Launch WhatsApp
   Future<void> _launchWhatsApp() async {
+    final phoneNumber = organizerWhatsApp.replaceAll(RegExp(r'[^0-9]'), '');
+    
+    if (phoneNumber.length < 10) {
+      if (mounted) {
+        _showSnackBar('Nomor WhatsApp tidak valid', Colors.red, Icons.error);
+      }
+      return;
+    }
+    
     final message = Uri.encodeComponent(
       'Halo, saya tertarik dengan event "${_currentEvent.name}" pada ${DateFormat('dd MMM yyyy').format(_currentEvent.date)}. '
       'Bisakah Anda memberikan informasi lebih lanjut?'
     );
-    final url = 'https://wa.me/$organizerWhatsApp?text=$message';
+    
+    final url = 'https://wa.me/$phoneNumber?text=$message';
     
     try {
       final uri = Uri.parse(url);
@@ -101,7 +114,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
         }
       } else {
         if (mounted) {
-          _showSnackBar('Tidak dapat membuka WhatsApp', Colors.red, Icons.error);
+          _showSnackBar('WhatsApp tidak terinstal', Colors.orange, Icons.warning);
         }
       }
     } catch (e) {
@@ -438,7 +451,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       children: [
                         _buildEventInfoCard(),
                         const SizedBox(height: 20),
-                        _buildActionButtons(), // FITUR BARU
+                        _buildActionButtons(),
                         const SizedBox(height: 20),
                         _buildGenerateTicketSection(),
                         const SizedBox(height: 20),
@@ -566,7 +579,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
     );
   }
 
-  // FITUR BARU: Action Buttons untuk fitur inovatif
   Widget _buildActionButtons() {
     return Card(
       color: const Color.fromRGBO(255, 255, 255, 0.1),
