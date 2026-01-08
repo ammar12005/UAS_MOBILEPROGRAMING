@@ -9,13 +9,25 @@ class HiveService {
   static const String _settingsBox = 'settings';
 
   static Future<void> init() async {
+    // Initialize Hive untuk web (IndexedDB) dan mobile
     await Hive.initFlutter();
+    
+    // Open all boxes
     await Hive.openBox<Map>(_eventsBox);
     await Hive.openBox<Map>(_ticketsBox);
     await Hive.openBox<Map>(_usersBox);
     await Hive.openBox<dynamic>(_settingsBox);
     
+    if (kIsWeb) {
+      debugPrint('🌐 Hive initialized for WEB (IndexedDB)');
+    } else {
+      debugPrint('📱 Hive initialized for Mobile/Desktop');
+    }
+    
     debugPrint('✅ Hive initialized successfully');
+    debugPrint('📦 Events box: ${Hive.box<Map>(_eventsBox).length} items');
+    debugPrint('📦 Users box: ${Hive.box<Map>(_usersBox).length} items');
+    debugPrint('📦 Settings box: ${Hive.box<dynamic>(_settingsBox).length} items');
   }
 
   // === USER OPERATIONS ===
@@ -32,7 +44,7 @@ class HiveService {
   static Future<void> createUser(User user) async {
     final box = Hive.box<Map>(_usersBox);
     await box.put(user.id.toString(), user.toJson());
-    await box.flush(); // CRITICAL: Save to disk
+    await box.flush();
     debugPrint('✅ User created: ${user.email}');
   }
 
@@ -59,16 +71,31 @@ class HiveService {
   static Future<void> saveCurrentUserEmail(String email) async {
     try {
       final box = Hive.box<dynamic>(_settingsBox);
+      
+      // Save to box
       await box.put('currentUserEmail', email);
-      await box.flush(); // CRITICAL: Force write to disk
+      
+      // Force flush
+      await box.flush();
+      
+      // Small delay untuk web
+      await Future.delayed(const Duration(milliseconds: 100));
       
       // Verify save
       final saved = box.get('currentUserEmail');
       debugPrint('💾 Session saved: $email');
-      debugPrint('✅ Verified: $saved');
+      debugPrint('✅ Verified in box: $saved');
       
       if (saved != email) {
-        debugPrint('⚠️ WARNING: Session save failed!');
+        debugPrint('⚠️ WARNING: Save verification failed!');
+        debugPrint('   Expected: $email');
+        debugPrint('   Got: $saved');
+        
+        // Retry
+        await box.put('currentUserEmail', email);
+        await box.flush();
+        final retry = box.get('currentUserEmail');
+        debugPrint('🔄 Retry result: $retry');
       }
     } catch (e) {
       debugPrint('❌ Error saving session: $e');
@@ -102,7 +129,7 @@ class HiveService {
   static Future<void> createEvent(Event event) async {
     final box = Hive.box<Map>(_eventsBox);
     await box.put(event.id.toString(), event.toJson());
-    await box.flush(); // Force save
+    await box.flush();
     
     debugPrint('✅ Event saved: ${event.name} (ID: ${event.id})');
     debugPrint('📦 Total events: ${box.length}');

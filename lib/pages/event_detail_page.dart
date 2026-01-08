@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models.dart';
 import '../database/hive_service.dart';
 import 'edit_event_page.dart';
@@ -32,6 +34,11 @@ class _EventDetailPageState extends State<EventDetailPage> {
   Ticket? _generatedTicket;
   late Event _currentEvent;
   bool _isLoading = false;
+
+  // Konfigurasi kontak untuk fitur inovatif
+  final String organizerPhone = '081234567890';
+  final String organizerWhatsApp = '6281234567890';
+  final String organizerEmail = 'organizer@eventpro.com';
 
   @override
   void initState() {
@@ -74,6 +81,240 @@ class _EventDetailPageState extends State<EventDetailPage> {
       ),
     );
   }
+
+  // ===== FITUR INOVATIF =====
+
+  // Fitur 1: Launch WhatsApp
+  Future<void> _launchWhatsApp() async {
+    final message = Uri.encodeComponent(
+      'Halo, saya tertarik dengan event "${_currentEvent.name}" pada ${DateFormat('dd MMM yyyy').format(_currentEvent.date)}. '
+      'Bisakah Anda memberikan informasi lebih lanjut?'
+    );
+    final url = 'https://wa.me/$organizerWhatsApp?text=$message';
+    
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          _showSnackBar('Membuka WhatsApp...', Colors.green, Icons.check_circle);
+        }
+      } else {
+        if (mounted) {
+          _showSnackBar('Tidak dapat membuka WhatsApp', Colors.red, Icons.error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error: $e', Colors.red, Icons.error);
+      }
+    }
+  }
+
+  // Fitur 2: Launch Phone
+  Future<void> _launchPhone() async {
+    final url = 'tel:$organizerPhone';
+    
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        if (mounted) {
+          _showSnackBar('Membuka aplikasi telepon...', Colors.blue, Icons.phone);
+        }
+      } else {
+        if (mounted) {
+          _showSnackBar('Tidak dapat membuka aplikasi telepon', Colors.red, Icons.error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error: $e', Colors.red, Icons.error);
+      }
+    }
+  }
+
+  // Fitur 3: Launch Email
+  Future<void> _launchEmail() async {
+    final subject = Uri.encodeComponent('Pertanyaan tentang Event: ${_currentEvent.name}');
+    final body = Uri.encodeComponent(
+      'Halo,\n\nSaya ingin menanyakan tentang event "${_currentEvent.name}" yang akan diadakan pada ${DateFormat('dd MMM yyyy').format(_currentEvent.date)}.\n\n'
+      'Lokasi: ${_currentEvent.location}\n'
+      'Harga: Rp ${NumberFormat('#,###').format(_currentEvent.price)}\n\n'
+      'Terima kasih.'
+    );
+    final url = 'mailto:$organizerEmail?subject=$subject&body=$body';
+    
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+        if (mounted) {
+          _showSnackBar('Membuka aplikasi email...', Colors.purple, Icons.email);
+        }
+      } else {
+        if (mounted) {
+          _showSnackBar('Tidak dapat membuka aplikasi email', Colors.red, Icons.error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error: $e', Colors.red, Icons.error);
+      }
+    }
+  }
+
+  // Fitur 4: Share Event
+  Future<void> _shareEvent() async {
+    try {
+      final shareText = 
+        '🎉 ${_currentEvent.name}\n\n'
+        '📅 ${DateFormat('dd MMM yyyy').format(_currentEvent.date)}\n'
+        '📍 ${_currentEvent.location}\n'
+        '💰 Rp ${NumberFormat('#,###').format(_currentEvent.price)}\n'
+        '🎫 ${_currentEvent.capacity - _currentEvent.ticketsSold} tiket tersisa!\n\n'
+        'Pesan sekarang di Event Manager Pro!';
+      
+      await Share.share(shareText, subject: _currentEvent.name);
+      if (mounted) {
+        _showSnackBar('Membagikan event...', Colors.teal, Icons.share);
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Gagal membagikan event', Colors.red, Icons.error);
+      }
+    }
+  }
+
+  // Fitur 5: Open Location in Maps
+  Future<void> _openInMaps() async {
+    final query = Uri.encodeComponent(_currentEvent.location);
+    final url = 'https://www.google.com/maps/search/?api=1&query=$query';
+    
+    try {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          _showSnackBar('Membuka Google Maps...', Colors.blue, Icons.map);
+        }
+      } else {
+        if (mounted) {
+          _showSnackBar('Tidak dapat membuka Maps', Colors.red, Icons.error);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar('Error: $e', Colors.red, Icons.error);
+      }
+    }
+  }
+
+  // Fitur 6: Show Contact Options Bottom Sheet
+  void _showContactOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF1E293B),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color.fromRGBO(255, 255, 255, 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Hubungi Penyelenggara',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            _buildContactOptionButton(
+              icon: Icons.chat,
+              label: 'WhatsApp',
+              color: Colors.green,
+              onPressed: () {
+                Navigator.pop(ctx);
+                _launchWhatsApp();
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildContactOptionButton(
+              icon: Icons.phone,
+              label: 'Telepon',
+              color: Colors.blue,
+              onPressed: () {
+                Navigator.pop(ctx);
+                _launchPhone();
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildContactOptionButton(
+              icon: Icons.email,
+              label: 'Email',
+              color: Colors.purple,
+              onPressed: () {
+                Navigator.pop(ctx);
+                _launchEmail();
+              },
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContactOptionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 24),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===== END FITUR INOVATIF =====
 
   Future<void> _generateTicket() async {
     if (_buyerNameController.text.trim().isEmpty) {
@@ -197,6 +438,8 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       children: [
                         _buildEventInfoCard(),
                         const SizedBox(height: 20),
+                        _buildActionButtons(), // FITUR BARU
+                        const SizedBox(height: 20),
                         _buildGenerateTicketSection(),
                         const SizedBox(height: 20),
                         _buildTicketList(),
@@ -249,12 +492,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   builder: (context) => EditEventPage(
                     event: _currentEvent,
                     onEventUpdated: (updatedEvent) {
-                      // Update state lokal
                       if (mounted) {
                         setState(() {
                           _currentEvent = updatedEvent;
                         });
-                        // Notify parent widget
                         widget.onEventChanged(updatedEvent);
                       }
                     },
@@ -262,7 +503,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
                 ),
               );
               
-              // Update dari result Navigator.pop
               if (result != null && mounted) {
                 setState(() {
                   _currentEvent = result;
@@ -282,7 +522,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
   Widget _buildEventInfoCard() {
     return Card(
-      color: Colors.white.withValues(alpha: 0.1),
+      color: const Color.fromRGBO(255, 255, 255, 0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -323,6 +563,87 @@ class _EventDetailPageState extends State<EventDetailPage> {
           ),
         ),
       ],
+    );
+  }
+
+  // FITUR BARU: Action Buttons untuk fitur inovatif
+  Widget _buildActionButtons() {
+    return Card(
+      color: const Color.fromRGBO(255, 255, 255, 0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Fitur Event',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.contact_support,
+                    label: 'Hubungi',
+                    onPressed: _showContactOptions,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.share,
+                    label: 'Bagikan',
+                    onPressed: _shareEvent,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionButton(
+                    icon: Icons.map,
+                    label: 'Maps',
+                    onPressed: _openInMaps,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color.fromRGBO(255, 255, 255, 0.15),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 24),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
     );
   }
 
@@ -383,7 +704,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
     return Column(
       children: [
-        // TextField Nama Pembeli - FIXED
         TextField(
           controller: _buyerNameController,
           style: const TextStyle(
@@ -404,7 +724,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
             ),
             prefixIcon: const Icon(Icons.person, color: Colors.white70),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.1),
+            fillColor: const Color.fromRGBO(255, 255, 255, 0.1),
             enabledBorder: OutlineInputBorder(
               borderSide: const BorderSide(color: Colors.white24),
               borderRadius: BorderRadius.circular(12),
@@ -421,7 +741,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
         ),
         const SizedBox(height: 16),
         
-        // Button Generate Tiket - FIXED
         SizedBox(
           width: double.infinity,
           height: 55,
@@ -456,7 +775,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
       return Container(
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: const Color.fromRGBO(255, 255, 255, 0.05),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Center(
@@ -493,17 +812,17 @@ class _EventDetailPageState extends State<EventDetailPage> {
           (t) => Container(
             margin: const EdgeInsets.only(bottom: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
+              color: const Color.fromRGBO(255, 255, 255, 0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.1),
+                color: const Color.fromRGBO(255, 255, 255, 0.1),
               ),
             ),
             child: ListTile(
               leading: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.purpleAccent.withValues(alpha: 0.2),
+                  color: const Color.fromRGBO(192, 132, 252, 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(

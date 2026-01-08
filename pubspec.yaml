@@ -42,6 +42,17 @@ dependencies:
   
   # UUID Generator
   uuid: ^4.5.1
+  
+  # ===== FITUR INOVATIF (WEB COMPATIBLE) =====
+  # URL Launcher - untuk WhatsApp, Telepon, Email, Maps
+  url_launcher: ^6.3.1
+  
+  # Share Plus - untuk sharing event (Web Share API)
+  share_plus: ^10.1.2
+  
+  # ===== HAPUS INI JIKA FOKUS WEB ONLY =====
+  # geolocator: ^13.0.2  # Tidak optimal untuk web
+  # flutter_local_notifications: ^18.0.1  # Tidak support web
 
 dev_dependencies:
   flutter_test:
@@ -55,16 +66,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  
-  # Assets
-  # assets:
-  #   - assets/images/
-  #   - assets/icons/
-  
-  # Custom fonts (optional)
-  # fonts:
-  #   - family: Inter
-  #     fonts:
-  #       - asset: fonts/Inter-Regular.ttf
-  #       - asset: fonts/Inter-Bold.ttf
-  #         weight: 700
