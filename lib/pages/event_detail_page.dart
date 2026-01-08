@@ -156,7 +156,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
     try {
       await HiveService.deleteEvent(_currentEvent.id);
       
-      // Batch delete tiket terkait di Hive
       for (var t in eventTickets) {
         await HiveService.deleteTicket(t.id);
       }
@@ -166,7 +165,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
       }
       
       if (mounted) {
-        Navigator.pop(context); // Tutup Detail Page
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) _showSnackBar('Gagal hapus event', Colors.red, Icons.error);
@@ -209,7 +208,9 @@ class _EventDetailPageState extends State<EventDetailPage> {
               if (_isLoading)
                 Container(
                   color: Colors.black54,
-                  child: const Center(child: CircularProgressIndicator(color: Color(0xFF9333EA))),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF9333EA)),
+                  ),
                 ),
             ],
           ),
@@ -217,8 +218,6 @@ class _EventDetailPageState extends State<EventDetailPage> {
       ),
     );
   }
-
-  // --- UI HELPER METHODS ---
 
   Widget _buildHeader() {
     return Padding(
@@ -232,22 +231,45 @@ class _EventDetailPageState extends State<EventDetailPage> {
           Expanded(
             child: Text(
               _currentEvent.name,
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => EditEventPage(
-                event: _currentEvent, 
-                onEventUpdated: (e) {
-                  setState(() => _currentEvent = e);
-                  widget.onEventChanged(e);
-                }
-              )),
-            ),
+            tooltip: 'Edit Event',
+            onPressed: () async {
+              final result = await Navigator.push<Event>(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditEventPage(
+                    event: _currentEvent,
+                    onEventUpdated: (updatedEvent) {
+                      // Update state lokal
+                      if (mounted) {
+                        setState(() {
+                          _currentEvent = updatedEvent;
+                        });
+                        // Notify parent widget
+                        widget.onEventChanged(updatedEvent);
+                      }
+                    },
+                  ),
+                ),
+              );
+              
+              // Update dari result Navigator.pop
+              if (result != null && mounted) {
+                setState(() {
+                  _currentEvent = result;
+                });
+                widget.onEventChanged(result);
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.delete, color: Colors.redAccent),
@@ -260,20 +282,29 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
   Widget _buildEventInfoCard() {
     return Card(
-      color: Colors.white10,
+      color: Colors.white.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _infoRow(Icons.calendar_today, DateFormat('dd MMM yyyy').format(_currentEvent.date)),
+            _infoRow(
+              Icons.calendar_today,
+              DateFormat('dd MMM yyyy').format(_currentEvent.date),
+            ),
             const SizedBox(height: 8),
             _infoRow(Icons.location_on, _currentEvent.location),
             const SizedBox(height: 8),
-            _infoRow(Icons.people, '${_currentEvent.ticketsSold} / ${_currentEvent.capacity} Tiket Terjual'),
+            _infoRow(
+              Icons.people,
+              '${_currentEvent.ticketsSold} / ${_currentEvent.capacity} Tiket Terjual',
+            ),
             const SizedBox(height: 8),
-            _infoRow(Icons.money, 'Rp ${NumberFormat('#,###').format(_currentEvent.price)}'),
+            _infoRow(
+              Icons.money,
+              'Rp ${NumberFormat('#,###').format(_currentEvent.price)}',
+            ),
           ],
         ),
       ),
@@ -285,7 +316,12 @@ class _EventDetailPageState extends State<EventDetailPage> {
       children: [
         Icon(icon, color: Colors.purpleAccent, size: 20),
         const SizedBox(width: 10),
-        Text(text, style: const TextStyle(color: Colors.white70)),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(color: Colors.white70, fontSize: 15),
+          ),
+        ),
       ],
     );
   }
@@ -294,14 +330,51 @@ class _EventDetailPageState extends State<EventDetailPage> {
     if (_generatedTicket != null) {
       return Card(
         color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              QrImageView(data: _generatedTicket!.code, size: 150),
-              Text(_generatedTicket!.code, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(_generatedTicket!.buyerName),
-              TextButton(onPressed: _resetForm, child: const Text("Buat Tiket Baru"))
+              const Text(
+                'Tiket Berhasil Dibuat!',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 16),
+              QrImageView(
+                data: _generatedTicket!.code,
+                size: 150,
+                backgroundColor: Colors.white,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _generatedTicket!.code,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _generatedTicket!.buyerName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: _resetForm,
+                icon: const Icon(Icons.add_circle_outline),
+                label: const Text('Buat Tiket Baru'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.deepPurple,
+                ),
+              ),
             ],
           ),
         ),
@@ -310,50 +383,193 @@ class _EventDetailPageState extends State<EventDetailPage> {
 
     return Column(
       children: [
+        // TextField Nama Pembeli - FIXED
         TextField(
           controller: _buyerNameController,
-          decoration: _inputDeco("Nama Pembeli", Icons.person),
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+          decoration: InputDecoration(
+            labelText: "Nama Pembeli",
+            labelStyle: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+            hintText: "Masukkan nama pembeli",
+            hintStyle: const TextStyle(
+              color: Colors.white38,
+              fontSize: 14,
+            ),
+            prefixIcon: const Icon(Icons.person, color: Colors.white70),
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.1),
+            enabledBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.white24),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.purpleAccent, width: 2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+          ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 16),
+        
+        // Button Generate Tiket - FIXED
         SizedBox(
           width: double.infinity,
+          height: 55,
           child: ElevatedButton(
-            onPressed: _generateTicket,
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.purple),
-            child: const Text("Generate Tiket QR"),
+            onPressed: _isLoading ? null : _generateTicket,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE879F9),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey,
+              disabledForegroundColor: Colors.white70,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 3,
+            ),
+            child: const Text(
+              "Pesan Tiket Ini",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ),
-        )
+        ),
       ],
     );
   }
 
   Widget _buildTicketList() {
+    if (eventTickets.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Center(
+          child: Column(
+            children: [
+              Icon(Icons.confirmation_number_outlined, 
+                color: Colors.white30, 
+                size: 48
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Belum ada tiket',
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Daftar Tiket", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        ...eventTickets.map((t) => ListTile(
-          tileColor: Colors.white10,
-          title: Text(t.buyerName, style: const TextStyle(color: Colors.white)),
-          subtitle: Text(t.code, style: const TextStyle(color: Colors.white54)),
-          trailing: IconButton(
-            icon: const Icon(Icons.delete, color: Colors.red),
-            onPressed: () => _deleteTicket(t),
+        const Text(
+          "Daftar Tiket",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
-        )),
+        ),
+        const SizedBox(height: 12),
+        ...eventTickets.map(
+          (t) => Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
+            ),
+            child: ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purpleAccent.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.confirmation_number,
+                  color: Colors.purpleAccent,
+                  size: 24,
+                ),
+              ),
+              title: Text(
+                t.buyerName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                ),
+              ),
+              subtitle: Text(
+                t.code,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                onPressed: () => _showDeleteTicketDialog(t),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  InputDecoration _inputDeco(String label, IconData icon) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: const TextStyle(color: Colors.white70),
-      prefixIcon: Icon(icon, color: Colors.white70),
-      enabledBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.white24), borderRadius: BorderRadius.circular(12)),
-      focusedBorder: OutlineInputBorder(borderSide: const BorderSide(color: Colors.purpleAccent), borderRadius: BorderRadius.circular(12)),
+  void _showDeleteTicketDialog(Ticket ticket) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Hapus Tiket',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Hapus tiket atas nama ${ticket.buyerName}?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _deleteTicket(ticket);
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -362,12 +578,25 @@ class _EventDetailPageState extends State<EventDetailPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Hapus Event', style: TextStyle(color: Colors.white)),
-        content: const Text('Semua data tiket akan ikut terhapus.', style: TextStyle(color: Colors.white70)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Hapus Event',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Semua data tiket akan ikut terhapus. Tindakan ini tidak dapat dibatalkan.',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               Navigator.pop(ctx);
               _handleDeleteEvent();
