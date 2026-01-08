@@ -13,9 +13,11 @@ dependencies:
   # UI & Icons
   cupertino_icons: ^1.0.8
   
-  # SQLite Database (Storage Utama)
-  sqflite: ^2.3.0
-  path: ^1.8.3
+  # Hive Database (Storage Utama - NoSQL)
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  
+  # Path Provider (untuk Hive)
   path_provider: ^2.1.1
   
   # Session Management (Lightweight)
@@ -35,14 +37,34 @@ dependencies:
   # Permissions Handler
   permission_handler: ^11.3.1
   
-  # State Management (opsional tapi direkomendasikan)
+  # State Management
   provider: ^6.1.1
+  
+  # UUID Generator
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   
+  # Hive Code Generator
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.7
+  
   flutter_lints: ^4.0.0
 
 flutter:
   uses-material-design: true
+  
+  # Assets
+  # assets:
+  #   - assets/images/
+  #   - assets/icons/
+  
+  # Custom fonts (optional)
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: fonts/Inter-Regular.ttf
+  #       - asset: fonts/Inter-Bold.ttf
+  #         weight: 700

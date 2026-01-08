@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import '../storage_service.dart';
-import 'dashboard_page.dart';
+import '../database/hive_service.dart'; 
 import 'register_page.dart';
+import 'dashboard_page.dart';
 import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
-  
+  // PERBAIKAN BIRU: Gunakan super parameter (Gbr image_30fe97.jpg)
+  const LoginPage({super.key}); 
+
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -40,33 +41,22 @@ class _LoginPageState extends State<LoginPage> {
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text.trim();
       
-      // Debug: Print untuk melihat data (hanya di debug mode)
-      if (kDebugMode) {
-        debugPrint('═══════════════════════════════════════');
-        debugPrint('DEBUG LOGIN');
-        debugPrint('═══════════════════════════════════════');
-        debugPrint('Email input: $email');
-        debugPrint('Password input: $password');
-      }
-      
-      // Login menggunakan SQLite via StorageService
-      final user = await StorageService.loginUser(email, password);
-      
-      if (kDebugMode) {
-        debugPrint('User found: ${user != null}');
-        if (user != null) {
-          debugPrint('User ID: ${user.id}');
-          debugPrint('User Name: ${user.name}');
-          debugPrint('User Email: ${user.email}');
-        }
-        debugPrint('═══════════════════════════════════════\n');
-      }
+      final user = await HiveService.getUserByEmail(email);
       
       if (!mounted) return;
       
-      if (user != null) {
-        // Session sudah di-set di StorageService.loginUser()
+      if (user != null && user.password == password) {
+        await HiveService.saveCurrentUserEmail(email);
+        
         if (!mounted) return;
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Selamat datang, ${user.name}!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         
         Navigator.pushReplacement(
           context,
@@ -77,9 +67,6 @@ class _LoginPageState extends State<LoginPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      if (kDebugMode) {
-        debugPrint('❌ Error login: $e');
-      }
       setState(() => _errorMessage = "Terjadi kesalahan: ${e.toString()}");
     } finally {
       if (mounted) {
@@ -105,7 +92,8 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.all(24),
               child: Card(
                 elevation: 20,
-                shadowColor: const Color(0x809333EA),
+                // PERBAIKAN BIRU: Gunakan .withValues untuk opacity (Gbr image_309999.jpg)
+                shadowColor: const Color(0xFF9333EA).withValues(alpha: 0.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 400),
@@ -115,227 +103,48 @@ class _LoginPageState extends State<LoginPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.auto_awesome, color: Colors.white, size: 40),
-                        ),
+                        const _HeaderIcon(), // PERBAIKAN BIRU: Gunakan const widget
                         const SizedBox(height: 20),
                         const Text(
                           "Selamat Datang!",
                           style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Login ke Event Manager Pro",
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                        ),
                         const SizedBox(height: 24),
                         
-                        // Error Message
                         if (_errorMessage != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red[200]!),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline, color: Colors.red, size: 20),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: const TextStyle(
-                                      color: Colors.red,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          _buildErrorBox(),
                           const SizedBox(height: 16),
                         ],
                         
-                        // Email Field
                         TextFormField(
                           controller: _emailController,
                           enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: "Email",
-                            prefixIcon: const Icon(Icons.email),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                          ),
+                          decoration: _inputStyle("Email", Icons.email),
                           keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          validator: (v) {
-                            if (v?.trim().isEmpty ?? true) return "Email harus diisi";
-                            final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                            if (!emailRegex.hasMatch(v!)) return "Email tidak valid";
-                            return null;
-                          },
+                          validator: (v) => (v == null || v.isEmpty) ? "Email harus diisi" : null,
                         ),
                         const SizedBox(height: 16),
                         
-                        // Password Field
                         TextFormField(
                           controller: _passwordController,
                           enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: "Password",
-                            prefixIcon: const Icon(Icons.lock),
+                          obscureText: !_showPassword,
+                          decoration: _inputStyle("Password", Icons.lock).copyWith(
                             suffixIcon: IconButton(
                               icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
                               onPressed: () => setState(() => _showPassword = !_showPassword),
                             ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: Colors.grey[50],
                           ),
-                          obscureText: !_showPassword,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _submit(),
-                          validator: (v) {
-                            if (v?.trim().isEmpty ?? true) return "Password harus diisi";
-                            return null;
-                          },
+                          validator: (v) => (v == null || v.isEmpty) ? "Password harus diisi" : null,
                         ),
-                        const SizedBox(height: 8),
                         
-                        // Forgot Password Button
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => const ForgotPasswordPage()),
-                                    );
-                                  },
-                            child: const Text('Lupa Password?'),
-                          ),
-                        ),
+                        const _ForgotPasswordLink(), // PERBAIKAN BIRU: Ekstrak ke const widget
                         const SizedBox(height: 16),
-                        
-                        // Login Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF9333EA),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 4,
-                              disabledBackgroundColor: Colors.grey[300],
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.login, size: 20),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        "Login",
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ),
+                        _buildLoginButton(),
                         const SizedBox(height: 16),
+                        const _RegisterLink(), // PERBAIKAN BIRU: Ekstrak ke const widget
                         
-                        // Register Link
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Belum punya akun?",
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                            TextButton(
-                              onPressed: _isLoading
-                                  ? null
-                                  : () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => const RegisterPage()),
-                                      );
-                                    },
-                              child: const Text(
-                                "Daftar",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF9333EA),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        // Debug Info (hanya tampil di debug mode)
-                        if (kDebugMode) ...[
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.blue[200]!),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Akun Test:',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue[700],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '1. admin@gmail.com / 123456\n'
-                                  '2. user@gmail.com / user123\n'
-                                  '3. ammar@gmail.com / ammar123',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.blue[900],
-                                    fontFamily: 'monospace',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                        if (kDebugMode) const _DebugInfo(), // PERBAIKAN BIRU: Gunakan const (Gbr image_310296.jpg)
                       ],
                     ),
                   ),
@@ -344,6 +153,117 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // --- Helper Widgets ---
+
+  InputDecoration _inputStyle(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      filled: true,
+      fillColor: Colors.grey[50],
+    );
+  }
+
+  Widget _buildErrorBox() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _submit,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF9333EA),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: _isLoading 
+          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Text("Login", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+}
+
+// --- SUB-WIDGETS UNTUK MENGHILANGKAN GARIS BIRU (Optimization) ---
+
+class _HeaderIcon extends StatelessWidget {
+  const _HeaderIcon();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(colors: [Color(0xFF9333EA), Color(0xFF3B82F6)]),
+        shape: BoxShape.circle,
+      ),
+      child: const Icon(Icons.auto_awesome, color: Colors.white, size: 40),
+    );
+  }
+}
+
+class _ForgotPasswordLink extends StatelessWidget {
+  const _ForgotPasswordLink();
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ForgotPasswordPage())),
+        child: const Text("Lupa Password?", style: TextStyle(color: Color(0xFF9333EA))),
+      ),
+    );
+  }
+}
+
+class _RegisterLink extends StatelessWidget {
+  const _RegisterLink();
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text("Belum punya akun? "),
+        GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage())),
+          child: const Text("Daftar", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF9333EA))),
+        ),
+      ],
+    );
+  }
+}
+
+class _DebugInfo extends StatelessWidget {
+  const _DebugInfo();
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 20),
+      child: Text(
+        'Akun Test:\nadmin@gmail.com / 123456',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 11, color: Colors.blue, fontFamily: 'monospace'),
       ),
     );
   }

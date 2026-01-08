@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+// Menggunakan HiveService sebagai pengganti DatabaseHelper
+import '../database/hive_service.dart'; 
 import '../models.dart';
-import '../storage_service.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  const RegisterPage({Key? key}) : super(key: key);
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -15,6 +16,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _phoneController = TextEditingController();
   
   bool _isLoading = false;
   String? _errorMessage;
@@ -27,6 +29,7 @@ class _RegisterPageState extends State<RegisterPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -46,8 +49,8 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final email = _emailController.text.trim().toLowerCase();
       
-      // Cek email sudah terdaftar di SQLite
-      final existingUser = await StorageService.getUserByEmail(email);
+      // 1. Cek apakah email sudah terdaftar di Hive
+      final existingUser = await HiveService.getUserByEmail(email);
       
       if (existingUser != null) {
         if (!mounted) return;
@@ -55,22 +58,22 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
       
-      // Buat user baru
+      // 2. Buat objek User baru (Gunakan timestamp untuk ID unik)
       final newUser = User(
         id: DateTime.now().millisecondsSinceEpoch,
         name: _nameController.text.trim(),
         email: email,
         password: _passwordController.text,
+        phone: _phoneController.text.trim(),
+        role: 'user',
+        createdAt: DateTime.now(),
       );
       
-      // Simpan ke SQLite
-      final success = await StorageService.saveUser(newUser);
+      // 3. Simpan data user ke Box Hive
+      await HiveService.createUser(newUser);
       
-      if (!success) {
-        if (!mounted) return;
-        setState(() => _errorMessage = "Gagal menyimpan data. Silakan coba lagi.");
-        return;
-      }
+      // 4. Simpan sesi email ke box settings untuk auto-login
+      await HiveService.saveCurrentUserEmail(email);
       
       if (!mounted) return;
       
@@ -80,20 +83,18 @@ class _RegisterPageState extends State<RegisterPage> {
             children: [
               Icon(Icons.check_circle, color: Colors.white),
               SizedBox(width: 12),
-              Expanded(
-                child: Text('Registrasi berhasil! Silakan login.'),
-              ),
+              Expanded(child: Text('Registrasi berhasil! Selamat datang.')),
             ],
           ),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 3),
         ),
       );
       
-      // Kembali ke login page
-      Navigator.pop(context);
+      // 5. Arahkan ke root/dashboard dan hapus semua history navigasi
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+      
     } catch (e) {
       if (!mounted) return;
       setState(() => _errorMessage = "Terjadi kesalahan: ${e.toString()}");
@@ -131,207 +132,14 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.person_add, color: Colors.white, size: 40),
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          "Buat Akun Baru",
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Daftar untuk menggunakan Event Manager Pro",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                        ),
+                        _buildHeader(),
                         const SizedBox(height: 24),
-                        
-                        // Error Message
-                        if (_errorMessage != null) ...[
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.red[200]!),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline, color: Colors.red, size: 20),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: const TextStyle(
-                                      color: Colors.red,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                        
-                        // Name Field
-                        TextFormField(
-                          controller: _nameController,
-                          enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: "Nama Lengkap",
-                            prefixIcon: const Icon(Icons.person),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                          ),
-                          textInputAction: TextInputAction.next,
-                          validator: (v) {
-                            if (v?.trim().isEmpty ?? true) return "Nama harus diisi";
-                            if (v!.trim().length < 3) return "Nama minimal 3 karakter";
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Email Field
-                        TextFormField(
-                          controller: _emailController,
-                          enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: "Email",
-                            prefixIcon: const Icon(Icons.email),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          validator: (v) {
-                            if (v?.trim().isEmpty ?? true) return "Email harus diisi";
-                            final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                            if (!emailRegex.hasMatch(v!)) return "Email tidak valid";
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Password Field
-                        TextFormField(
-                          controller: _passwordController,
-                          enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: "Password",
-                            prefixIcon: const Icon(Icons.lock),
-                            suffixIcon: IconButton(
-                              icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _showPassword = !_showPassword),
-                            ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                          ),
-                          obscureText: !_showPassword,
-                          textInputAction: TextInputAction.next,
-                          validator: (v) {
-                            if (v?.trim().isEmpty ?? true) return "Password harus diisi";
-                            if (v!.length < 6) return "Password minimal 6 karakter";
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Confirm Password Field
-                        TextFormField(
-                          controller: _confirmPasswordController,
-                          enabled: !_isLoading,
-                          decoration: InputDecoration(
-                            labelText: "Konfirmasi Password",
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              icon: Icon(_showConfirmPassword ? Icons.visibility_off : Icons.visibility),
-                              onPressed: () => setState(() => _showConfirmPassword = !_showConfirmPassword),
-                            ),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                            filled: true,
-                            fillColor: Colors.grey[50],
-                          ),
-                          obscureText: !_showConfirmPassword,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _submit(),
-                          validator: (v) {
-                            if (v?.trim().isEmpty ?? true) return "Konfirmasi password harus diisi";
-                            if (v != _passwordController.text) return "Password tidak cocok";
-                            return null;
-                          },
-                        ),
+                        if (_errorMessage != null) _buildErrorBox(),
+                        _buildTextFields(),
                         const SizedBox(height: 24),
-                        
-                        // Register Button
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF9333EA),
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              elevation: 4,
-                              disabledBackgroundColor: Colors.grey[300],
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.person_add, size: 20),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        "Daftar",
-                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                          ),
-                        ),
+                        _buildSubmitButton(),
                         const SizedBox(height: 16),
-                        
-                        // Login Link
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Sudah punya akun?",
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                            TextButton(
-                              onPressed: _isLoading ? null : () => Navigator.pop(context),
-                              child: const Text(
-                                "Login",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF9333EA),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        _buildLoginLink(),
                       ],
                     ),
                   ),
@@ -341,6 +149,122 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ),
+    );
+  }
+
+  // --- UI HELPER METHODS ---
+
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Color(0xFF9333EA), Color(0xFF3B82F6)]),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.person_add, color: Colors.white, size: 40),
+        ),
+        const SizedBox(height: 20),
+        const Text("Buat Akun", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+
+  Widget _buildErrorBox() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Colors.red, size: 20),
+          const SizedBox(width: 8),
+          Expanded(child: Text(_errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextFields() {
+    return Column(
+      children: [
+        _buildInput(controller: _nameController, label: "Nama Lengkap", icon: Icons.person),
+        const SizedBox(height: 16),
+        _buildInput(controller: _emailController, label: "Email", icon: Icons.email, type: TextInputType.emailAddress),
+        const SizedBox(height: 16),
+        _buildInput(controller: _phoneController, label: "No. Telepon", icon: Icons.phone, type: TextInputType.phone),
+        const SizedBox(height: 16),
+        _buildInput(
+          controller: _passwordController, 
+          label: "Password", 
+          icon: Icons.lock, 
+          isPassword: true, 
+          show: _showPassword,
+          toggle: () => setState(() => _showPassword = !_showPassword)
+        ),
+        const SizedBox(height: 16),
+        _buildInput(
+          controller: _confirmPasswordController, 
+          label: "Konfirmasi Password", 
+          icon: Icons.lock_outline, 
+          isPassword: true, 
+          show: _showConfirmPassword,
+          toggle: () => setState(() => _showConfirmPassword = !_showConfirmPassword)
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInput({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool isPassword = false,
+    bool? show,
+    VoidCallback? toggle,
+    TextInputType type = TextInputType.text,
+  }) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword ? !(show ?? false) : false,
+      keyboardType: type,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        suffixIcon: isPassword ? IconButton(icon: Icon((show ?? false) ? Icons.visibility_off : Icons.visibility), onPressed: toggle) : null,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+      validator: (v) => (v == null || v.isEmpty) ? "Bidang ini wajib diisi" : null,
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _submit,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF9333EA),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Daftar Sekarang"),
+      ),
+    );
+  }
+
+  Widget _buildLoginLink() {
+    return TextButton(
+      onPressed: () => Navigator.pop(context),
+      child: const Text("Sudah punya akun? Login di sini"),
     );
   }
 }

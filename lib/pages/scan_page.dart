@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-// PERBAIKAN: Menghapus import 'intl' karena tidak digunakan (unused import)
 import '../models.dart';
+// 1. Ganti import ke HiveService
+import '../database/hive_service.dart';
 
 class ScanPage extends StatefulWidget {
   final List<Ticket> tickets;
@@ -33,6 +34,7 @@ class _ScanPageState extends State<ScanPage> {
     super.dispose();
   }
 
+  // === UPDATE: LOGIKA SCAN MENGGUNAKAN HIVESERVICE ===
   Future<void> _scanTicket(String ticketCode) async {
     final searchCode = ticketCode.trim().toUpperCase();
     
@@ -64,6 +66,7 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
 
+    // 2. Buat objek ticket yang diperbarui
     final updatedTicket = Ticket(
       id: ticket.id,
       eventId: ticket.eventId,
@@ -75,18 +78,32 @@ class _ScanPageState extends State<ScanPage> {
       scannedAt: DateTime.now(),
     );
 
-    final updatedTickets = List<Ticket>.from(widget.tickets);
-    updatedTickets[ticketIndex] = updatedTicket;
+    try {
+      // 3. Simpan perubahan ke Hive
+      // Kita menggunakan createTicket atau updateUser di HiveService karena logic-nya sama (.put)
+      await HiveService.createTicket(updatedTicket);
 
-    widget.onTicketsChanged(updatedTickets);
+      // 4. Update state UI di Dashboard/Page Utama
+      final updatedTickets = List<Ticket>.from(widget.tickets);
+      updatedTickets[ticketIndex] = updatedTicket;
+      widget.onTicketsChanged(updatedTickets);
 
-    setState(() {
-      _scanResult = ScanResult(
-        isValid: true,
-        message: 'Check-in Berhasil!',
-        ticket: updatedTicket,
-      );
-    });
+      setState(() {
+        _scanResult = ScanResult(
+          isValid: true,
+          message: 'Check-in Berhasil!',
+          ticket: updatedTicket,
+        );
+      });
+    } catch (e) {
+      setState(() {
+        _scanResult = ScanResult(
+          isValid: false,
+          message: 'Gagal memperbarui database: $e',
+          ticket: null,
+        );
+      });
+    }
   }
 
   void _handleManualScan() {
@@ -113,6 +130,7 @@ class _ScanPageState extends State<ScanPage> {
     }
   }
 
+  // === Bagian Build UI tetap sama seperti kode Anda sebelumnya ===
   @override
   Widget build(BuildContext context) {
     final totalTickets = widget.tickets.length;
@@ -153,10 +171,11 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
+  // --- Widget helper buildUpperStats, buildStatCard, dll tetap sama ---
   Widget _buildUpperStats(int total, int hadir, int sisa) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05)),
+      decoration: const BoxDecoration(color: Colors.white10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -186,9 +205,9 @@ class _ScanPageState extends State<ScanPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.white10),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,9 +222,9 @@ class _ScanPageState extends State<ScanPage> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Masukkan kode tiket...',
-                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
+                    hintStyle: const TextStyle(color: Colors.white38),
                     filled: true,
-                    fillColor: Colors.white.withValues(alpha: 0.05),
+                    fillColor: Colors.white10,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   ),
                 ),
@@ -229,9 +248,9 @@ class _ScanPageState extends State<ScanPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: Colors.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.white10),
       ),
       child: Column(
         children: [
@@ -241,18 +260,10 @@ class _ScanPageState extends State<ScanPage> {
               const Text('Scan QR Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               Switch(
                 value: _isCameraActive,
-                // PERBAIKAN: Menghilangkan 'activeColor' yang deprecated, gunakan activeTrackColor
-                activeTrackColor: const Color(0xFFC4B5FD).withValues(alpha: 0.5),
-                thumbColor: WidgetStateProperty.resolveWith<Color?>((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return const Color(0xFFC4B5FD);
-                  }
-                  return null;
-                }),
+                activeTrackColor: const Color(0xFFC4B5FD).withOpacity(0.5),
                 onChanged: (val) {
                   setState(() {
                     _isCameraActive = val;
-                    // PERBAIKAN: Menambahkan kurung kurawal agar linting warning hilang
                     if (_isCameraActive) {
                       _scannerController.start();
                     } else {
@@ -298,15 +309,15 @@ class _ScanPageState extends State<ScanPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
+          color: color.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           children: [
             Icon(icon, color: color, size: 20),
             Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8))),
+            Text(label, style: TextStyle(fontSize: 11, color: color.withOpacity(0.8))),
           ],
         ),
       ),
@@ -320,9 +331,9 @@ class _ScanPageState extends State<ScanPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: baseColor.withValues(alpha: 0.15),
+        color: baseColor.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: baseColor.withValues(alpha: 0.3)),
+        border: Border.all(color: baseColor.withOpacity(0.3)),
       ),
       child: Column(
         children: [
