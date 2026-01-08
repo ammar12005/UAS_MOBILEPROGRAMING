@@ -6,20 +6,21 @@ import 'pages/login_page.dart';
 import 'pages/dashboard_page.dart';
 
 void main() async {
-  // Memastikan Flutter binding diinisialisasi sebelum operasi database
   WidgetsFlutterBinding.ensureInitialized();
   
   User? initialUser;
   
   try {
-    // 2. Gunakan HiveService untuk inisialisasi (Menggantikan SQLite)
+    // 1. Inisialisasi Hive
     await HiveService.init(); 
     
-    // 3. Buat akun default menggunakan Hive
+    // 2. Buat akun default
     await _createDefaultAccount();
     
-    // 4. Cek sesi login terakhir dari Hive
-    final email = await HiveService.getCurrentUserEmail();
+    // 3. Cek sesi login (PERBAIKAN BIRU: Hapus await jika getCurrentUserEmail bukan Future)
+    // Berdasarkan peringatan di image_311463.jpg, fungsi ini mengembalikan String langsung.
+    final email = HiveService.getCurrentUserEmail(); 
+    
     if (email != null) {
       initialUser = await HiveService.getUserByEmail(email);
     }
@@ -39,14 +40,13 @@ void main() async {
 /// Membuat akun default jika database kosong
 Future<void> _createDefaultAccount() async {
   try {
-    // Cek apakah sudah ada admin (sebagai penanda database kosong atau tidak)
     final admin = await HiveService.getUserByEmail('admin@gmail.com');
     
     if (admin == null) {
       final defaultUsers = [
-        User(id: 1, name: 'Admin', email: 'admin@gmail.com', password: '123456', role: 'admin'),
-        User(id: 2, name: 'User Test', email: 'user@gmail.com', password: 'user123', role: 'user'),
-        User(id: 3, name: 'Ammar', email: 'ammar@gmail.com', password: 'ammar123', role: 'user'),
+        User(id: 1, name: 'Admin', email: 'admin@gmail.com', password: '123456', role: 'admin', createdAt: DateTime.now(), phone: ''),
+        User(id: 2, name: 'User Test', email: 'user@gmail.com', password: 'user123', role: 'user', createdAt: DateTime.now(), phone: ''),
+        User(id: 3, name: 'Ammar', email: 'ammar@gmail.com', password: 'ammar123', role: 'user', createdAt: DateTime.now(), phone: ''),
       ];
       
       for (var user in defaultUsers) {
@@ -70,7 +70,7 @@ void _printStartupInfo(User? user) {
   debugPrint('═══════════════════════════════════════');
   debugPrint('📦 Storage System: Hive (NoSQL)');
   debugPrint('👤 Session Status: ${user != null ? "Logged In" : "Not Logged In"}');
-  if (user != null) debugPrint('   - Active User: ${user.name}');
+  if (user != null) debugPrint('   - Active User: ${user.name}');
   debugPrint('═══════════════════════════════════════\n');
 }
 
@@ -88,7 +88,6 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Inter',
       ),
-      // Jika ada session masuk ke Dashboard, jika tidak ke Login
       home: initialUser != null 
           ? DashboardPage(user: initialUser!) 
           : const LoginPage(),

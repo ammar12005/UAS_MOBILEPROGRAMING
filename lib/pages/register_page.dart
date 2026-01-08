@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-// Menggunakan HiveService sebagai pengganti DatabaseHelper
 import '../database/hive_service.dart'; 
 import '../models.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({Key? key}) : super(key: key);
+  // PERBAIKAN BIRU: Gunakan super parameter
+  const RegisterPage({super.key}); 
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -48,8 +48,6 @@ class _RegisterPageState extends State<RegisterPage> {
     
     try {
       final email = _emailController.text.trim().toLowerCase();
-      
-      // 1. Cek apakah email sudah terdaftar di Hive
       final existingUser = await HiveService.getUserByEmail(email);
       
       if (existingUser != null) {
@@ -58,7 +56,6 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
       
-      // 2. Buat objek User baru (Gunakan timestamp untuk ID unik)
       final newUser = User(
         id: DateTime.now().millisecondsSinceEpoch,
         name: _nameController.text.trim(),
@@ -69,17 +66,14 @@ class _RegisterPageState extends State<RegisterPage> {
         createdAt: DateTime.now(),
       );
       
-      // 3. Simpan data user ke Box Hive
       await HiveService.createUser(newUser);
-      
-      // 4. Simpan sesi email ke box settings untuk auto-login
       await HiveService.saveCurrentUserEmail(email);
       
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
+        const SnackBar(
+          content: Row(
             children: [
               Icon(Icons.check_circle, color: Colors.white),
               SizedBox(width: 12),
@@ -88,11 +82,9 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
       
-      // 5. Arahkan ke root/dashboard dan hapus semua history navigasi
       Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       
     } catch (e) {
@@ -132,14 +124,14 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildHeader(),
+                        const _RegisterHeader(), 
                         const SizedBox(height: 24),
                         if (_errorMessage != null) _buildErrorBox(),
                         _buildTextFields(),
                         const SizedBox(height: 24),
                         _buildSubmitButton(),
                         const SizedBox(height: 16),
-                        _buildLoginLink(),
+                        const _LoginLink(),
                       ],
                     ),
                   ),
@@ -149,25 +141,6 @@ class _RegisterPageState extends State<RegisterPage> {
           ),
         ),
       ),
-    );
-  }
-
-  // --- UI HELPER METHODS ---
-
-  Widget _buildHeader() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(colors: [Color(0xFF9333EA), Color(0xFF3B82F6)]),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.person_add, color: Colors.white, size: 40),
-        ),
-        const SizedBox(height: 20),
-        const Text("Buat Akun", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
-      ],
     );
   }
 
@@ -256,12 +229,42 @@ class _RegisterPageState extends State<RegisterPage> {
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text("Daftar Sekarang"),
+        child: _isLoading 
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+            : const Text("Daftar Sekarang"),
       ),
     );
   }
+}
 
-  Widget _buildLoginLink() {
+// --- SUB-WIDGETS UNTUK OPTIMASI ---
+
+class _RegisterHeader extends StatelessWidget {
+  const _RegisterHeader();
+  @override
+  Widget build(BuildContext context) {
+    // PERBAIKAN MERAH: Hapus keyword 'const' dari Column karena memiliki Container dinamis
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(colors: [Color(0xFF9333EA), Color(0xFF3B82F6)]),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.person_add, color: Colors.white, size: 40),
+        ),
+        const SizedBox(height: 20),
+        const Text("Buat Akun", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+      ],
+    );
+  }
+}
+
+class _LoginLink extends StatelessWidget {
+  const _LoginLink();
+  @override
+  Widget build(BuildContext context) {
     return TextButton(
       onPressed: () => Navigator.pop(context),
       child: const Text("Sudah punya akun? Login di sini"),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../models.dart';
-// 1. Ganti import ke HiveService
 import '../database/hive_service.dart';
 
 class ScanPage extends StatefulWidget {
@@ -34,7 +33,6 @@ class _ScanPageState extends State<ScanPage> {
     super.dispose();
   }
 
-  // === UPDATE: LOGIKA SCAN MENGGUNAKAN HIVESERVICE ===
   Future<void> _scanTicket(String ticketCode) async {
     final searchCode = ticketCode.trim().toUpperCase();
     
@@ -66,7 +64,6 @@ class _ScanPageState extends State<ScanPage> {
       return;
     }
 
-    // 2. Buat objek ticket yang diperbarui
     final updatedTicket = Ticket(
       id: ticket.id,
       eventId: ticket.eventId,
@@ -79,30 +76,31 @@ class _ScanPageState extends State<ScanPage> {
     );
 
     try {
-      // 3. Simpan perubahan ke Hive
-      // Kita menggunakan createTicket atau updateUser di HiveService karena logic-nya sama (.put)
       await HiveService.createTicket(updatedTicket);
 
-      // 4. Update state UI di Dashboard/Page Utama
       final updatedTickets = List<Ticket>.from(widget.tickets);
       updatedTickets[ticketIndex] = updatedTicket;
       widget.onTicketsChanged(updatedTickets);
 
-      setState(() {
-        _scanResult = ScanResult(
-          isValid: true,
-          message: 'Check-in Berhasil!',
-          ticket: updatedTicket,
-        );
-      });
+      if (mounted) {
+        setState(() {
+          _scanResult = ScanResult(
+            isValid: true,
+            message: 'Check-in Berhasil!',
+            ticket: updatedTicket,
+          );
+        });
+      }
     } catch (e) {
-      setState(() {
-        _scanResult = ScanResult(
-          isValid: false,
-          message: 'Gagal memperbarui database: $e',
-          ticket: null,
-        );
-      });
+      if (mounted) {
+        setState(() {
+          _scanResult = ScanResult(
+            isValid: false,
+            message: 'Gagal memperbarui database: $e',
+            ticket: null,
+          );
+        });
+      }
     }
   }
 
@@ -130,7 +128,6 @@ class _ScanPageState extends State<ScanPage> {
     }
   }
 
-  // === Bagian Build UI tetap sama seperti kode Anda sebelumnya ===
   @override
   Widget build(BuildContext context) {
     final totalTickets = widget.tickets.length;
@@ -171,11 +168,10 @@ class _ScanPageState extends State<ScanPage> {
     );
   }
 
-  // --- Widget helper buildUpperStats, buildStatCard, dll tetap sama ---
   Widget _buildUpperStats(int total, int hadir, int sisa) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(color: Colors.white10),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -205,7 +201,7 @@ class _ScanPageState extends State<ScanPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN BIRU: Ganti withOpacity ke withValues
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -248,7 +244,7 @@ class _ScanPageState extends State<ScanPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1), // PERBAIKAN BIRU
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white10),
       ),
@@ -260,7 +256,7 @@ class _ScanPageState extends State<ScanPage> {
               const Text('Scan QR Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
               Switch(
                 value: _isCameraActive,
-                activeTrackColor: const Color(0xFFC4B5FD).withOpacity(0.5),
+                activeTrackColor: const Color(0xFFC4B5FD).withValues(alpha: 0.5), // PERBAIKAN BIRU
                 onChanged: (val) {
                   setState(() {
                     _isCameraActive = val;
@@ -309,15 +305,15 @@ class _ScanPageState extends State<ScanPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
+          color: color.withValues(alpha: 0.15), // PERBAIKAN BIRU
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)), // PERBAIKAN BIRU
         ),
         child: Column(
           children: [
             Icon(icon, color: color, size: 20),
             Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
-            Text(label, style: TextStyle(fontSize: 11, color: color.withOpacity(0.8))),
+            Text(label, style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.8))), // PERBAIKAN BIRU
           ],
         ),
       ),
@@ -331,9 +327,9 @@ class _ScanPageState extends State<ScanPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: baseColor.withOpacity(0.15),
+        color: baseColor.withValues(alpha: 0.15), // PERBAIKAN BIRU
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: baseColor.withOpacity(0.3)),
+        border: Border.all(color: baseColor.withValues(alpha: 0.3)), // PERBAIKAN BIRU
       ),
       child: Column(
         children: [
