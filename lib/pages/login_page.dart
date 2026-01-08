@@ -6,7 +6,6 @@ import 'dashboard_page.dart';
 import 'forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
-  // PERBAIKAN BIRU: Gunakan super parameter (Gbr image_30fe97.jpg)
   const LoginPage({super.key}); 
 
   @override
@@ -41,12 +40,29 @@ class _LoginPageState extends State<LoginPage> {
       final email = _emailController.text.trim().toLowerCase();
       final password = _passwordController.text.trim();
       
+      debugPrint('🔐 Attempting login: $email');
+      
       final user = await HiveService.getUserByEmail(email);
       
       if (!mounted) return;
       
       if (user != null && user.password == password) {
+        debugPrint('✅ User authenticated: ${user.name}');
+        
+        // CRITICAL: Save session
         await HiveService.saveCurrentUserEmail(email);
+        
+        // VERIFY: Check if session is saved
+        final savedEmail = HiveService.getCurrentUserEmail();
+        debugPrint('🔍 Verification - Saved email: $savedEmail');
+        
+        if (savedEmail != email) {
+          debugPrint('⚠️ WARNING: Session save verification FAILED!');
+          debugPrint('   Expected: $email');
+          debugPrint('   Got: $savedEmail');
+        } else {
+          debugPrint('✅ Session save verified successfully');
+        }
         
         if (!mounted) return;
         
@@ -58,14 +74,18 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
         
+        // Navigate to dashboard
+        debugPrint('🚀 Navigating to Dashboard');
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => DashboardPage(user: user)),
         );
       } else {
+        debugPrint('❌ Authentication failed');
         setState(() => _errorMessage = "Email atau password salah");
       }
     } catch (e) {
+      debugPrint('❌ Login error: $e');
       if (!mounted) return;
       setState(() => _errorMessage = "Terjadi kesalahan: ${e.toString()}");
     } finally {
@@ -92,7 +112,6 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.all(24),
               child: Card(
                 elevation: 20,
-                // PERBAIKAN BIRU: Gunakan .withValues untuk opacity (Gbr image_309999.jpg)
                 shadowColor: const Color(0xFF9333EA).withValues(alpha: 0.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 child: Container(
@@ -103,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const _HeaderIcon(), // PERBAIKAN BIRU: Gunakan const widget
+                        const _HeaderIcon(),
                         const SizedBox(height: 20),
                         const Text(
                           "Selamat Datang!",
@@ -138,13 +157,13 @@ class _LoginPageState extends State<LoginPage> {
                           validator: (v) => (v == null || v.isEmpty) ? "Password harus diisi" : null,
                         ),
                         
-                        const _ForgotPasswordLink(), // PERBAIKAN BIRU: Ekstrak ke const widget
+                        const _ForgotPasswordLink(),
                         const SizedBox(height: 16),
                         _buildLoginButton(),
                         const SizedBox(height: 16),
-                        const _RegisterLink(), // PERBAIKAN BIRU: Ekstrak ke const widget
+                        const _RegisterLink(),
                         
-                        if (kDebugMode) const _DebugInfo(), // PERBAIKAN BIRU: Gunakan const (Gbr image_310296.jpg)
+                        if (kDebugMode) const _DebugInfo(),
                       ],
                     ),
                   ),
@@ -206,7 +225,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// --- SUB-WIDGETS UNTUK MENGHILANGKAN GARIS BIRU (Optimization) ---
+// --- SUB-WIDGETS ---
 
 class _HeaderIcon extends StatelessWidget {
   const _HeaderIcon();
